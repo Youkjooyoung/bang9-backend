@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.cart.dao.CartDao">
+
+    <resultMap id="CartItemMap" type="kr.bang9.cart.domain.CartItem">
+        <id column="CART_ITEM_ID" property="cartItemId"/>
+        <result column="CART_ID" property="cartId"/>
+        <result column="PRODUCT_ID" property="productId"/>
+        <result column="PRODUCT_OPTION_ID" property="productOptionId"/>
+        <result column="QUANTITY" property="quantity"/>
+        <result column="SOURCE_LISTING_ID" property="sourceListingId"/>
+        <result column="ADDED_AT" property="addedAt"/>
+    </resultMap>
+
+    <resultMap id="CartItemViewMap" type="kr.bang9.cart.dto.CartItemView">
+        <constructor>
+            <idArg column="CART_ITEM_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_NAME" javaType="java.lang.String"/>
+            <arg column="BRAND" javaType="java.lang.String"/>
+            <arg column="SALE_PRICE" javaType="java.lang.Integer"/>
+            <arg column="SHIPPING_FEE" javaType="java.lang.Integer"/>
+            <arg column="STOCK" javaType="java.lang.Integer"/>
+            <arg column="COVER_IMAGE_URL" javaType="java.lang.String"/>
+            <arg column="PRODUCT_OPTION_ID" javaType="java.lang.Long"/>
+            <arg column="OPTION_TYPE" javaType="java.lang.String"/>
+            <arg column="OPTION_VALUE" javaType="java.lang.String"/>
+            <arg column="ADDITIONAL_PRICE" javaType="java.lang.Integer"/>
+            <arg column="QUANTITY" javaType="java.lang.Integer"/>
+            <arg column="SOURCE_LISTING_ID" javaType="java.lang.Long"/>
+            <arg column="SOURCE_LISTING_TITLE" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertCart">
+        INSERT INTO CARTS (USER_ID) VALUES (#{userId})
+    </insert>
+
+    <insert id="insertCartItem" useGeneratedKeys="true" keyProperty="cartItemId" keyColumn="CART_ITEM_ID">
+        INSERT INTO CART_ITEMS (CART_ID, PRODUCT_ID, PRODUCT_OPTION_ID, QUANTITY, SOURCE_LISTING_ID)
+        VALUES (#{cartId}, #{productId}, #{productOptionId}, #{quantity}, #{sourceListingId})
+    </insert>
+
+    <select id="findCartIdByUser" resultType="long">
+        SELECT CART_ID FROM CARTS WHERE USER_ID = #{userId}
+    </select>
+
+    <select id="findExistingItem" resultMap="CartItemMap">
+        SELECT CART_ITEM_ID, CART_ID, PRODUCT_ID, PRODUCT_OPTION_ID, QUANTITY, SOURCE_LISTING_ID, ADDED_AT
+        FROM CART_ITEMS
+        WHERE CART_ID = #{cartId}
+          AND PRODUCT_ID = #{productId}
+          AND <choose>
+            <when test="productOptionId != null">PRODUCT_OPTION_ID = #{productOptionId}</when>
+            <otherwise>PRODUCT_OPTION_ID IS NULL</otherwise>
+          </choose>
+    </select>
+
+    <select id="findCartIdByItem" resultType="long">
+        SELECT CART_ID FROM CART_ITEMS WHERE CART_ITEM_ID = #{cartItemId}
+    </select>
+
+    <select id="findItemsByCart" resultMap="CartItemViewMap">
+        SELECT
+            CI.CART_ITEM_ID,
+            P.PRODUCT_ID,
+            P.NAME AS PRODUCT_NAME,
+            P.BRAND,
+            P.SALE_PRICE,
+            P.SHIPPING_FEE,
+            P.STOCK,
+            (SELECT PI.S3_URL FROM PRODUCT_IMAGES PI
+              WHERE PI.PRODUCT_ID = P.PRODUCT_ID
+              ORDER BY PI.IS_COVER DESC, PI.SORT_ORDER ASC LIMIT 1) AS COVER_IMAGE_URL,
+            PO.PRODUCT_OPTION_ID,
+            PO.OPTION_TYPE,
+            PO.OPTION_VALUE,
+            PO.ADDITIONAL_PRICE,
+            CI.QUANTITY,
+            CI.SOURCE_LISTING_ID,
+            L.TITLE AS SOURCE_LISTING_TITLE
+        FROM CART_ITEMS CI
+        JOIN PRODUCTS P ON P.PRODUCT_ID = CI.PRODUCT_ID AND P.DELETED_AT IS NULL
+        LEFT JOIN PRODUCT_OPTIONS PO ON PO.PRODUCT_OPTION_ID = CI.PRODUCT_OPTION_ID
+        LEFT JOIN LISTINGS L ON L.LISTING_ID = CI.SOURCE_LISTING_ID AND L.DELETED_AT IS NULL
+        WHERE CI.CART_ID = #{cartId}
+        ORDER BY CI.ADDED_AT DESC
+    </select>
+
+    <select id="countItemsByCart" resultType="int">
+        SELECT COUNT(*) FROM CART_ITEMS WHERE CART_ID = #{cartId}
+    </select>
+
+    <update id="updateItemQuantity">
+        UPDATE CART_ITEMS SET QUANTITY = #{quantity}
+        WHERE CART_ITEM_ID = #{cartItemId}
+    </update>
+
+    <delete id="deleteItem">
+        DELETE FROM CART_ITEMS WHERE CART_ITEM_ID = #{cartItemId}
+    </delete>
+
+    <delete id="deleteItemsByCart">
+        DELETE FROM CART_ITEMS WHERE CART_ID = #{cartId}
+    </delete>
+
+</mapper>

@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.admin.dao.AdminDao">
+
+    <resultMap id="AdminLogViewMap" type="kr.bang9.admin.dto.AdminLogView">
+        <constructor>
+            <idArg column="LOG_ID" javaType="Long"/>
+            <arg column="ADMIN_USER_ID" javaType="Long"/>
+            <arg column="ADMIN_NICKNAME" javaType="String"/>
+            <arg column="ACTION" javaType="String"/>
+            <arg column="TARGET_TYPE" javaType="String"/>
+            <arg column="TARGET_ID" javaType="Long"/>
+            <arg column="PAYLOAD" javaType="String"/>
+            <arg column="CREATED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="AdminUserViewMap" type="kr.bang9.admin.dto.AdminUserView">
+        <constructor>
+            <idArg column="USER_ID" javaType="Long"/>
+            <arg column="EMAIL" javaType="String"/>
+            <arg column="NICKNAME" javaType="String"/>
+            <arg column="ROLE" javaType="String"/>
+            <arg column="STATUS" javaType="String"/>
+            <arg column="OAUTH_PROVIDER" javaType="String"/>
+            <arg column="LAST_LOGIN_AT" javaType="java.time.LocalDateTime"/>
+            <arg column="CREATED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="AdminListingViewMap" type="kr.bang9.admin.dto.AdminListingView">
+        <constructor>
+            <idArg column="LISTING_ID" javaType="Long"/>
+            <arg column="TITLE" javaType="String"/>
+            <arg column="DEAL_TYPE" javaType="String"/>
+            <arg column="STATUS" javaType="String"/>
+            <arg column="OWNER_USER_ID" javaType="Long"/>
+            <arg column="OWNER_NICKNAME" javaType="String"/>
+            <arg column="PRICE_DEPOSIT" javaType="Long"/>
+            <arg column="PRICE_MONTHLY" javaType="Long"/>
+            <arg column="REPORT_COUNT" javaType="Integer"/>
+            <arg column="CREATED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="AdminReportViewMap" type="kr.bang9.admin.dto.AdminReportView">
+        <constructor>
+            <idArg column="REPORT_ID" javaType="Long"/>
+            <arg column="LISTING_ID" javaType="Long"/>
+            <arg column="LISTING_TITLE" javaType="String"/>
+            <arg column="REPORTER_USER_ID" javaType="Long"/>
+            <arg column="REPORTER_NICKNAME" javaType="String"/>
+            <arg column="REASON" javaType="String"/>
+            <arg column="STATUS" javaType="String"/>
+            <arg column="CREATED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertLog" parameterType="kr.bang9.admin.domain.AdminLog"
+            useGeneratedKeys="true" keyProperty="logId">
+        INSERT INTO ADMIN_LOGS (ADMIN_USER_ID, ACTION, TARGET_TYPE, TARGET_ID, PAYLOAD)
+        VALUES (#{adminUserId}, #{action}, #{targetType}, #{targetId}, #{payload})
+    </insert>
+
+    <select id="findLogs" resultMap="AdminLogViewMap">
+        SELECT A.LOG_ID, A.ADMIN_USER_ID, U.NICKNAME AS ADMIN_NICKNAME,
+               A.ACTION, A.TARGET_TYPE, A.TARGET_ID, A.PAYLOAD, A.CREATED_AT
+        FROM ADMIN_LOGS A
+        JOIN USERS U ON U.USER_ID = A.ADMIN_USER_ID
+        ORDER BY A.CREATED_AT DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countLogs" resultType="int">
+        SELECT COUNT(*) FROM ADMIN_LOGS
+    </select>
+
+    <select id="findUsers" resultMap="AdminUserViewMap">
+        SELECT USER_ID, EMAIL, NICKNAME, ROLE, STATUS, OAUTH_PROVIDER, LAST_LOGIN_AT, CREATED_AT
+        FROM USERS
+        <where>
+            DELETED_AT IS NULL
+            <if test="keyword != null and keyword != ''">
+                AND (EMAIL LIKE CONCAT('%', #{keyword}, '%')
+                     OR NICKNAME LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND STATUS = #{status}
+            </if>
+            <if test="role != null and role != ''">
+                AND ROLE = #{role}
+            </if>
+        </where>
+        ORDER BY USER_ID DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countUsers" resultType="int">
+        SELECT COUNT(*) FROM USERS
+        <where>
+            DELETED_AT IS NULL
+            <if test="keyword != null and keyword != ''">
+                AND (EMAIL LIKE CONCAT('%', #{keyword}, '%')
+                     OR NICKNAME LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND STATUS = #{status}
+            </if>
+            <if test="role != null and role != ''">
+                AND ROLE = #{role}
+            </if>
+        </where>
+    </select>
+
+    <select id="findUserById" resultMap="AdminUserViewMap">
+        SELECT USER_ID, EMAIL, NICKNAME, ROLE, STATUS, OAUTH_PROVIDER, LAST_LOGIN_AT, CREATED_AT
+        FROM USERS
+        WHERE USER_ID = #{userId} AND DELETED_AT IS NULL
+    </select>
+
+    <update id="updateUserStatus">
+        UPDATE USERS SET STATUS = #{status}, UPDATED_AT = CURRENT_TIMESTAMP
+        WHERE USER_ID = #{userId}
+    </update>
+
+    <update id="updateUserRole">
+        UPDATE USERS SET ROLE = #{role}, UPDATED_AT = CURRENT_TIMESTAMP
+        WHERE USER_ID = #{userId}
+    </update>
+
+    <select id="findListings" resultMap="AdminListingViewMap">
+        SELECT L.LISTING_ID, L.TITLE, L.DEAL_TYPE, L.STATUS,
+               L.HOST_USER_ID AS OWNER_USER_ID, U.NICKNAME AS OWNER_NICKNAME,
+               L.DEPOSIT AS PRICE_DEPOSIT, L.MONTHLY_RENT AS PRICE_MONTHLY,
+               (SELECT COUNT(*) FROM LISTING_REPORTS R WHERE R.LISTING_ID = L.LISTING_ID) AS REPORT_COUNT,
+               L.CREATED_AT
+        FROM LISTINGS L
+        JOIN USERS U ON U.USER_ID = L.HOST_USER_ID
+        <where>
+            <if test="status != null and status != ''">
+                AND L.STATUS = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND L.TITLE LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY L.LISTING_ID DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countListings" resultType="int">
+        SELECT COUNT(*) FROM LISTINGS L
+        <where>
+            <if test="status != null and status != ''">
+                AND L.STATUS = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND L.TITLE LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+    <update id="updateListingStatus">
+        UPDATE LISTINGS
+        SET STATUS = #{status},
+            REJECT_REASON = #{rejectReason},
+            UPDATED_AT = CURRENT_TIMESTAMP
+        WHERE LISTING_ID = #{listingId}
+    </update>
+
+    <select id="findReports" resultMap="AdminReportViewMap">
+        SELECT R.REPORT_ID, R.LISTING_ID, L.TITLE AS LISTING_TITLE,
+               R.REPORTER_USER_ID, U.NICKNAME AS REPORTER_NICKNAME,
+               R.REASON, R.STATUS, R.CREATED_AT
+        FROM LISTING_REPORTS R
+        JOIN LISTINGS L ON L.LISTING_ID = R.LISTING_ID
+        JOIN USERS U ON U.USER_ID = R.REPORTER_USER_ID
+        <where>
+            <if test="status != null and status != ''">
+                AND R.STATUS = #{status}
+            </if>
+        </where>
+        ORDER BY R.CREATED_AT DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countReports" resultType="int">
+        SELECT COUNT(*) FROM LISTING_REPORTS R
+        <where>
+            <if test="status != null and status != ''">
+                AND R.STATUS = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="findReportById" resultMap="AdminReportViewMap">
+        SELECT R.REPORT_ID, R.LISTING_ID, L.TITLE AS LISTING_TITLE,
+               R.REPORTER_USER_ID, U.NICKNAME AS REPORTER_NICKNAME,
+               R.REASON, R.STATUS, R.CREATED_AT
+        FROM LISTING_REPORTS R
+        JOIN LISTINGS L ON L.LISTING_ID = R.LISTING_ID
+        JOIN USERS U ON U.USER_ID = R.REPORTER_USER_ID
+        WHERE R.REPORT_ID = #{reportId}
+    </select>
+
+    <update id="updateReportStatus">
+        UPDATE LISTING_REPORTS SET STATUS = #{status}
+        WHERE REPORT_ID = #{reportId}
+    </update>
+
+    <resultMap id="AdminOrderViewMap" type="kr.bang9.admin.dto.AdminOrderView">
+        <constructor>
+            <idArg column="ORDER_ID" javaType="java.lang.Long"/>
+            <arg column="ORDER_CODE" javaType="java.lang.String"/>
+            <arg column="USER_ID" javaType="java.lang.Long"/>
+            <arg column="USER_NICKNAME" javaType="java.lang.String"/>
+            <arg column="USER_EMAIL" javaType="java.lang.String"/>
+            <arg column="TOTAL" javaType="java.lang.Integer"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="PAYMENT_METHOD" javaType="java.lang.String"/>
+            <arg column="PAYMENT_STATUS" javaType="java.lang.String"/>
+            <arg column="REFUND_STATUS" javaType="java.lang.String"/>
+            <arg column="CREATED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <select id="findOrders" resultMap="AdminOrderViewMap">
+        SELECT
+            O.ORDER_ID,
+            O.ORDER_CODE,
+            O.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            U.EMAIL AS USER_EMAIL,
+            O.TOTAL,
+            O.STATUS,
+            P.METHOD AS PAYMENT_METHOD,
+            P.STATUS AS PAYMENT_STATUS,
+            (SELECT R.STATUS FROM REFUNDS R
+                WHERE R.ORDER_ID = O.ORDER_ID
+                ORDER BY R.REFUND_ID DESC LIMIT 1) AS REFUND_STATUS,
+            O.CREATED_AT
+        FROM ORDERS O
+        JOIN USERS U ON U.USER_ID = O.USER_ID
+        LEFT JOIN PAYMENTS P ON P.ORDER_ID = O.ORDER_ID
+        <where>
+            <if test="status != null and status != ''">
+                O.STATUS = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (O.ORDER_CODE LIKE CONCAT('%', #{keyword}, '%')
+                    OR U.NICKNAME LIKE CONCAT('%', #{keyword}, '%')
+                    OR U.EMAIL LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY O.CREATED_AT DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countOrders" resultType="int">
+        SELECT COUNT(*)
+        FROM ORDERS O
+        JOIN USERS U ON U.USER_ID = O.USER_ID
+        <where>
+            <if test="status != null and status != ''">
+                O.STATUS = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (O.ORDER_CODE LIKE CONCAT('%', #{keyword}, '%')
+                    OR U.NICKNAME LIKE CONCAT('%', #{keyword}, '%')
+                    OR U.EMAIL LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+</mapper>

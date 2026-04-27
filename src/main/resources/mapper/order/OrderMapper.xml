@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.order.dao.OrderDao">
+
+    <resultMap id="OrderMap" type="kr.bang9.order.domain.Order">
+        <id column="ORDER_ID" property="orderId"/>
+        <result column="USER_ID" property="userId"/>
+        <result column="ORDER_CODE" property="orderCode"/>
+        <result column="ADDRESS_SNAPSHOT" property="addressSnapshot"/>
+        <result column="SUBTOTAL" property="subtotal"/>
+        <result column="SHIPPING_FEE" property="shippingFee"/>
+        <result column="DISCOUNT" property="discount"/>
+        <result column="TOTAL" property="total"/>
+        <result column="STATUS" property="status"/>
+        <result column="CREATED_AT" property="createdAt"/>
+        <result column="UPDATED_AT" property="updatedAt"/>
+    </resultMap>
+
+    <resultMap id="OrderItemViewMap" type="kr.bang9.order.dto.OrderItemView">
+        <constructor>
+            <idArg column="ORDER_ITEM_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_OPTION_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_SNAPSHOT" javaType="java.lang.String"/>
+            <arg column="QUANTITY" javaType="java.lang.Integer"/>
+            <arg column="UNIT_PRICE" javaType="java.lang.Integer"/>
+            <arg column="LINE_TOTAL" javaType="java.lang.Integer"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="OrderListItemMap" type="kr.bang9.order.dto.OrderListItem">
+        <constructor>
+            <idArg column="ORDER_ID" javaType="java.lang.Long"/>
+            <arg column="ORDER_CODE" javaType="java.lang.String"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="TOTAL" javaType="java.lang.Integer"/>
+            <arg column="ITEM_COUNT" javaType="java.lang.Integer"/>
+            <arg column="FIRST_PRODUCT_NAME" javaType="java.lang.String"/>
+            <arg column="FIRST_COVER_IMAGE" javaType="java.lang.String"/>
+            <arg column="CREATED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertOrder" useGeneratedKeys="true" keyProperty="orderId" keyColumn="ORDER_ID">
+        INSERT INTO ORDERS (
+            USER_ID, ORDER_CODE, ADDRESS_SNAPSHOT, SUBTOTAL,
+            SHIPPING_FEE, DISCOUNT, TOTAL, STATUS
+        ) VALUES (
+            #{userId}, #{orderCode}, #{addressSnapshot}, #{subtotal},
+            #{shippingFee}, #{discount}, #{total}, #{status}
+        )
+    </insert>
+
+    <insert id="insertOrderItem" useGeneratedKeys="true" keyProperty="orderItemId" keyColumn="ORDER_ITEM_ID">
+        INSERT INTO ORDER_ITEMS (
+            ORDER_ID, PRODUCT_ID, PRODUCT_OPTION_ID, PRODUCT_SNAPSHOT,
+            QUANTITY, UNIT_PRICE, LINE_TOTAL
+        ) VALUES (
+            #{orderId}, #{productId}, #{productOptionId}, #{productSnapshot},
+            #{quantity}, #{unitPrice}, #{lineTotal}
+        )
+    </insert>
+
+    <select id="findByCode" resultMap="OrderMap">
+        SELECT ORDER_ID, USER_ID, ORDER_CODE, ADDRESS_SNAPSHOT, SUBTOTAL,
+               SHIPPING_FEE, DISCOUNT, TOTAL, STATUS, CREATED_AT, UPDATED_AT
+        FROM ORDERS
+        WHERE ORDER_CODE = #{orderCode}
+    </select>
+
+    <select id="lockOrderForUpdate" resultType="long">
+        SELECT ORDER_ID FROM ORDERS WHERE ORDER_ID = #{orderId} FOR UPDATE
+    </select>
+
+    <select id="findItemsByOrder" resultMap="OrderItemViewMap">
+        SELECT ORDER_ITEM_ID, PRODUCT_ID, PRODUCT_OPTION_ID, PRODUCT_SNAPSHOT,
+               QUANTITY, UNIT_PRICE, LINE_TOTAL
+        FROM ORDER_ITEMS
+        WHERE ORDER_ID = #{orderId}
+        ORDER BY ORDER_ITEM_ID ASC
+    </select>
+
+    <select id="findDetailByCode" resultMap="OrderMap">
+        SELECT ORDER_ID, USER_ID, ORDER_CODE, ADDRESS_SNAPSHOT, SUBTOTAL,
+               SHIPPING_FEE, DISCOUNT, TOTAL, STATUS, CREATED_AT, UPDATED_AT
+        FROM ORDERS
+        WHERE USER_ID = #{userId} AND ORDER_CODE = #{orderCode}
+    </select>
+
+    <select id="findListByUser" resultMap="OrderListItemMap">
+        SELECT
+            O.ORDER_ID,
+            O.ORDER_CODE,
+            O.STATUS,
+            O.TOTAL,
+            (SELECT COUNT(*) FROM ORDER_ITEMS WHERE ORDER_ID = O.ORDER_ID) AS ITEM_COUNT,
+            (SELECT JSON_UNQUOTE(JSON_EXTRACT(PRODUCT_SNAPSHOT, '$.productName'))
+               FROM ORDER_ITEMS WHERE ORDER_ID = O.ORDER_ID ORDER BY ORDER_ITEM_ID LIMIT 1) AS FIRST_PRODUCT_NAME,
+            (SELECT JSON_UNQUOTE(JSON_EXTRACT(PRODUCT_SNAPSHOT, '$.coverImageUrl'))
+               FROM ORDER_ITEMS WHERE ORDER_ID = O.ORDER_ID ORDER BY ORDER_ITEM_ID LIMIT 1) AS FIRST_COVER_IMAGE,
+            O.CREATED_AT
+        FROM ORDERS O
+        WHERE O.USER_ID = #{userId}
+        ORDER BY O.CREATED_AT DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*) FROM ORDERS WHERE USER_ID = #{userId}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE ORDERS SET STATUS = #{status} WHERE ORDER_ID = #{orderId}
+    </update>
+
+</mapper>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.listing.favorite.dao.FavoriteDao">
+
+    <resultMap id="FavoriteListingSummaryMap" type="kr.bang9.listing.favorite.dto.FavoriteListingSummary">
+        <constructor>
+            <idArg column="LISTING_ID" javaType="java.lang.Long"/>
+            <arg column="TITLE" javaType="java.lang.String"/>
+            <arg column="ROOM_TYPE" javaType="java.lang.String"/>
+            <arg column="DEAL_TYPE" javaType="java.lang.String"/>
+            <arg column="DEPOSIT" javaType="java.lang.Integer"/>
+            <arg column="MONTHLY_RENT" javaType="java.lang.Integer"/>
+            <arg column="ADDRESS_ROAD" javaType="java.lang.String"/>
+            <arg column="AREA_M2" javaType="java.math.BigDecimal"/>
+            <arg column="THUMBNAIL_URL" javaType="java.lang.String"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="FAVORITED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertFavorite">
+        INSERT IGNORE INTO FAVORITES (USER_ID, LISTING_ID)
+        VALUES (#{userId}, #{listingId})
+    </insert>
+
+    <select id="existsFavorite" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM FAVORITES
+        WHERE USER_ID = #{userId}
+          AND LISTING_ID = #{listingId}
+    </select>
+
+    <select id="findMyFavorites" resultMap="FavoriteListingSummaryMap">
+        SELECT
+            L.LISTING_ID,
+            L.TITLE,
+            L.ROOM_TYPE,
+            L.DEAL_TYPE,
+            L.DEPOSIT,
+            L.MONTHLY_RENT,
+            L.ADDRESS_ROAD,
+            L.AREA_M2,
+            LI.S3_URL AS THUMBNAIL_URL,
+            L.STATUS,
+            F.CREATED_AT AS FAVORITED_AT
+        FROM FAVORITES F
+        INNER JOIN LISTINGS L ON L.LISTING_ID = F.LISTING_ID
+        LEFT JOIN (
+            SELECT LISTING_ID, S3_URL,
+                   ROW_NUMBER() OVER (PARTITION BY LISTING_ID ORDER BY SORT_ORDER ASC, LISTING_IMAGE_ID ASC) AS RN
+            FROM LISTING_IMAGES
+        ) LI ON LI.LISTING_ID = L.LISTING_ID AND LI.RN = 1
+        WHERE F.USER_ID = #{userId}
+          AND L.DELETED_AT IS NULL
+        ORDER BY F.CREATED_AT DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countMyFavorites" resultType="long">
+        SELECT COUNT(*)
+        FROM FAVORITES F
+        INNER JOIN LISTINGS L ON L.LISTING_ID = F.LISTING_ID
+        WHERE F.USER_ID = #{userId}
+          AND L.DELETED_AT IS NULL
+    </select>
+
+    <delete id="deleteFavorite">
+        DELETE FROM FAVORITES
+        WHERE USER_ID = #{userId}
+          AND LISTING_ID = #{listingId}
+    </delete>
+
+</mapper>

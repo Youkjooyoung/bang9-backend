@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.product.dao.ProductDao">
+
+    <resultMap id="ProductSummaryMap" type="kr.bang9.product.dto.ProductSummary">
+        <constructor>
+            <idArg column="PRODUCT_ID" javaType="java.lang.Long"/>
+            <arg column="NAME" javaType="java.lang.String"/>
+            <arg column="BRAND" javaType="java.lang.String"/>
+            <arg column="PRICE" javaType="java.lang.Integer"/>
+            <arg column="SALE_PRICE" javaType="java.lang.Integer"/>
+            <arg column="DISCOUNT_RATE" javaType="java.lang.Integer"/>
+            <arg column="COVER_IMAGE_URL" javaType="java.lang.String"/>
+            <arg column="CATEGORY_ID" javaType="java.lang.Integer"/>
+            <arg column="CATEGORY_NAME" javaType="java.lang.String"/>
+            <arg column="WIDTH_CM" javaType="java.lang.Short"/>
+            <arg column="DEPTH_CM" javaType="java.lang.Short"/>
+            <arg column="HEIGHT_CM" javaType="java.lang.Short"/>
+            <arg column="AVERAGE_RATING" javaType="java.lang.Double"/>
+            <arg column="REVIEW_COUNT" javaType="java.lang.Integer"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="ProductDetailRowMap" type="kr.bang9.product.dto.ProductDetailRow">
+        <constructor>
+            <idArg column="PRODUCT_ID" javaType="java.lang.Long"/>
+            <arg column="CATEGORY_ID" javaType="java.lang.Integer"/>
+            <arg column="CATEGORY_NAME" javaType="java.lang.String"/>
+            <arg column="NAME" javaType="java.lang.String"/>
+            <arg column="BRAND" javaType="java.lang.String"/>
+            <arg column="PRICE" javaType="java.lang.Integer"/>
+            <arg column="SALE_PRICE" javaType="java.lang.Integer"/>
+            <arg column="STOCK" javaType="java.lang.Integer"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="WIDTH_CM" javaType="java.lang.Short"/>
+            <arg column="DEPTH_CM" javaType="java.lang.Short"/>
+            <arg column="HEIGHT_CM" javaType="java.lang.Short"/>
+            <arg column="WEIGHT_KG" javaType="java.math.BigDecimal"/>
+            <arg column="SHIPPING_FEE" javaType="java.lang.Integer"/>
+            <arg column="DESCRIPTION_HTML" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="ProductOptionMap" type="kr.bang9.product.dto.ProductOption">
+        <constructor>
+            <idArg column="PRODUCT_OPTION_ID" javaType="java.lang.Long"/>
+            <arg column="OPTION_TYPE" javaType="java.lang.String"/>
+            <arg column="OPTION_VALUE" javaType="java.lang.String"/>
+            <arg column="ADDITIONAL_PRICE" javaType="java.lang.Integer"/>
+            <arg column="STOCK" javaType="java.lang.Integer"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="CategoryFlatMap" type="kr.bang9.product.dto.CategoryFlat">
+        <constructor>
+            <idArg column="CATEGORY_ID" javaType="java.lang.Integer"/>
+            <arg column="PARENT_ID" javaType="java.lang.Integer"/>
+            <arg column="NAME" javaType="java.lang.String"/>
+            <arg column="DEPTH" javaType="java.lang.Integer"/>
+            <arg column="SORT_ORDER" javaType="java.lang.Integer"/>
+        </constructor>
+    </resultMap>
+
+    <sql id="searchWhere">
+        WHERE P.DELETED_AT IS NULL AND P.STATUS = 'ACTIVE'
+        <if test="q.keyword != null and q.keyword != ''">
+            AND (P.NAME LIKE CONCAT('%', #{q.keyword}, '%')
+                 OR P.BRAND LIKE CONCAT('%', #{q.keyword}, '%'))
+        </if>
+        <if test="q.categoryId != null">
+            AND (P.CATEGORY_ID = #{q.categoryId}
+                 OR P.CATEGORY_ID IN (
+                    SELECT C2.CATEGORY_ID FROM PRODUCT_CATEGORIES C2
+                    WHERE C2.PARENT_ID = #{q.categoryId}
+                       OR C2.CATEGORY_ID IN (
+                           SELECT C3.CATEGORY_ID FROM PRODUCT_CATEGORIES C3
+                           WHERE C3.PARENT_ID IN (
+                               SELECT CATEGORY_ID FROM PRODUCT_CATEGORIES WHERE PARENT_ID = #{q.categoryId}
+                           )
+                       )
+                 )
+            )
+        </if>
+        <if test="q.priceMin != null">AND P.SALE_PRICE &gt;= #{q.priceMin}</if>
+        <if test="q.priceMax != null">AND P.SALE_PRICE &lt;= #{q.priceMax}</if>
+        <if test="q.widthMax != null">AND (P.WIDTH_CM IS NULL OR P.WIDTH_CM &lt;= #{q.widthMax})</if>
+        <if test="q.depthMax != null">AND (P.DEPTH_CM IS NULL OR P.DEPTH_CM &lt;= #{q.depthMax})</if>
+        <if test="q.heightMax != null">AND (P.HEIGHT_CM IS NULL OR P.HEIGHT_CM &lt;= #{q.heightMax})</if>
+    </sql>
+
+    <select id="search" resultMap="ProductSummaryMap">
+        SELECT
+            P.PRODUCT_ID, P.NAME, P.BRAND, P.PRICE, P.SALE_PRICE,
+            CASE WHEN P.PRICE = 0 THEN 0
+                 ELSE CAST(ROUND((P.PRICE - P.SALE_PRICE) * 100.0 / P.PRICE) AS SIGNED)
+            END AS DISCOUNT_RATE,
+            (SELECT PI.S3_URL FROM PRODUCT_IMAGES PI
+              WHERE PI.PRODUCT_ID = P.PRODUCT_ID
+              ORDER BY PI.IS_COVER DESC, PI.SORT_ORDER ASC LIMIT 1) AS COVER_IMAGE_URL,
+            P.CATEGORY_ID, C.NAME AS CATEGORY_NAME,
+            P.WIDTH_CM, P.DEPTH_CM, P.HEIGHT_CM,
+            COALESCE(RS.AVERAGE_RATING, 0) AS AVERAGE_RATING,
+            COALESCE(RS.REVIEW_COUNT, 0) AS REVIEW_COUNT
+        FROM PRODUCTS P
+        JOIN PRODUCT_CATEGORIES C ON C.CATEGORY_ID = P.CATEGORY_ID
+        LEFT JOIN (
+            SELECT PRODUCT_ID,
+                   AVG(RATING) AS AVERAGE_RATING,
+                   CAST(COUNT(*) AS SIGNED) AS REVIEW_COUNT
+            FROM PRODUCT_REVIEWS
+            GROUP BY PRODUCT_ID
+        ) RS ON RS.PRODUCT_ID = P.PRODUCT_ID
+        <include refid="searchWhere"/>
+        <choose>
+            <when test="q.safeSort == 'priceAsc'">ORDER BY P.SALE_PRICE ASC</when>
+            <when test="q.safeSort == 'priceDesc'">ORDER BY P.SALE_PRICE DESC</when>
+            <when test="q.safeSort == 'discount'">ORDER BY DISCOUNT_RATE DESC</when>
+            <otherwise>ORDER BY P.CREATED_AT DESC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*) FROM PRODUCTS P
+        <include refid="searchWhere"/>
+    </select>
+
+    <select id="findDetail" resultMap="ProductDetailRowMap">
+        SELECT
+            P.PRODUCT_ID, P.CATEGORY_ID, C.NAME AS CATEGORY_NAME,
+            P.NAME, P.BRAND, P.PRICE, P.SALE_PRICE, P.STOCK, P.STATUS,
+            P.WIDTH_CM, P.DEPTH_CM, P.HEIGHT_CM, P.WEIGHT_KG,
+            P.SHIPPING_FEE, P.DESCRIPTION_HTML
+        FROM PRODUCTS P
+        JOIN PRODUCT_CATEGORIES C ON C.CATEGORY_ID = P.CATEGORY_ID
+        WHERE P.PRODUCT_ID = #{productId} AND P.DELETED_AT IS NULL
+    </select>
+
+    <select id="findImageUrls" resultType="string">
+        SELECT S3_URL FROM PRODUCT_IMAGES
+        WHERE PRODUCT_ID = #{productId}
+        ORDER BY IS_COVER DESC, SORT_ORDER ASC
+    </select>
+
+    <select id="findOptions" resultMap="ProductOptionMap">
+        SELECT PRODUCT_OPTION_ID, OPTION_TYPE, OPTION_VALUE, ADDITIONAL_PRICE, STOCK
+        FROM PRODUCT_OPTIONS
+        WHERE PRODUCT_ID = #{productId}
+        ORDER BY PRODUCT_OPTION_ID ASC
+    </select>
+
+    <select id="findAllCategories" resultMap="CategoryFlatMap">
+        SELECT CATEGORY_ID, PARENT_ID, NAME, DEPTH, SORT_ORDER
+        FROM PRODUCT_CATEGORIES
+        ORDER BY DEPTH ASC, SORT_ORDER ASC, CATEGORY_ID ASC
+    </select>
+
+    <select id="lockProductStock" resultType="integer">
+        SELECT STOCK FROM PRODUCTS
+        WHERE PRODUCT_ID = #{productId} AND DELETED_AT IS NULL
+        FOR UPDATE
+    </select>
+
+    <select id="lockOptionStock" resultType="integer">
+        SELECT STOCK FROM PRODUCT_OPTIONS
+        WHERE PRODUCT_OPTION_ID = #{productOptionId}
+        FOR UPDATE
+    </select>
+
+    <update id="decreaseProductStock">
+        UPDATE PRODUCTS SET STOCK = STOCK - #{quantity}
+        WHERE PRODUCT_ID = #{productId} AND STOCK &gt;= #{quantity}
+    </update>
+
+    <update id="decreaseOptionStock">
+        UPDATE PRODUCT_OPTIONS SET STOCK = STOCK - #{quantity}
+        WHERE PRODUCT_OPTION_ID = #{productOptionId} AND STOCK &gt;= #{quantity}
+    </update>
+
+    <update id="increaseProductStock">
+        UPDATE PRODUCTS SET STOCK = STOCK + #{quantity}
+        WHERE PRODUCT_ID = #{productId}
+    </update>
+
+    <update id="increaseOptionStock">
+        UPDATE PRODUCT_OPTIONS SET STOCK = STOCK + #{quantity}
+        WHERE PRODUCT_OPTION_ID = #{productOptionId}
+    </update>
+
+</mapper>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.external.publicdata.dao.PublicDataDao">
+
+    <resultMap id="PublicRealEstateMap" type="kr.bang9.external.publicdata.PublicRealEstate">
+        <id column="DEAL_ID" property="dealId"/>
+        <result column="REGION_CODE" property="regionCode"/>
+        <result column="DEAL_TYPE" property="dealType"/>
+        <result column="AREA_M2" property="areaM2"/>
+        <result column="DEPOSIT" property="deposit"/>
+        <result column="MONTHLY_RENT" property="monthlyRent"/>
+        <result column="DEAL_YEAR_MONTH" property="dealYearMonth"/>
+        <result column="BUILDING_NAME" property="buildingName"/>
+        <result column="FLOOR" property="floor"/>
+        <result column="CREATED_AT" property="createdAt"/>
+    </resultMap>
+
+    <resultMap id="MarketPriceStatsMap" type="kr.bang9.external.publicdata.dto.MarketPriceStats">
+        <constructor>
+            <idArg column="REGION_CODE" javaType="String"/>
+            <arg column="DEAL_TYPE" javaType="String"/>
+            <arg column="CNT" javaType="Integer"/>
+            <arg column="AVG_DEPOSIT" javaType="Long"/>
+            <arg column="AVG_MONTHLY" javaType="Long"/>
+            <arg column="MIN_DEPOSIT" javaType="Integer"/>
+            <arg column="MAX_DEPOSIT" javaType="Integer"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="bulkInsert" parameterType="list">
+        INSERT INTO PUBLIC_REAL_ESTATE
+            (REGION_CODE, DEAL_TYPE, AREA_M2, DEPOSIT, MONTHLY_RENT, DEAL_YEAR_MONTH, BUILDING_NAME, FLOOR)
+        VALUES
+        <foreach collection="rows" item="row" separator=",">
+            (#{row.regionCode}, #{row.dealType}, #{row.areaM2}, #{row.deposit}, #{row.monthlyRent},
+             #{row.dealYearMonth}, #{row.buildingName}, #{row.floor})
+        </foreach>
+    </insert>
+
+    <select id="countByRegionAndMonth" resultType="int">
+        SELECT COUNT(*) FROM PUBLIC_REAL_ESTATE
+        WHERE REGION_CODE = #{regionCode} AND DEAL_YEAR_MONTH = #{yearMonth}
+    </select>
+
+    <delete id="deleteByRegionAndMonth">
+        DELETE FROM PUBLIC_REAL_ESTATE
+        WHERE REGION_CODE = #{regionCode} AND DEAL_YEAR_MONTH = #{yearMonth}
+    </delete>
+
+    <select id="findStats" resultMap="MarketPriceStatsMap">
+        SELECT REGION_CODE,
+               DEAL_TYPE,
+               COUNT(*) AS CNT,
+               ROUND(AVG(DEPOSIT)) AS AVG_DEPOSIT,
+               ROUND(AVG(MONTHLY_RENT)) AS AVG_MONTHLY,
+               MIN(DEPOSIT) AS MIN_DEPOSIT,
+               MAX(DEPOSIT) AS MAX_DEPOSIT
+        FROM PUBLIC_REAL_ESTATE
+        WHERE REGION_CODE = #{regionCode} AND DEAL_TYPE = #{dealType}
+        GROUP BY REGION_CODE, DEAL_TYPE
+    </select>
+
+    <select id="findRecent" resultMap="PublicRealEstateMap">
+        SELECT DEAL_ID, REGION_CODE, DEAL_TYPE, AREA_M2, DEPOSIT, MONTHLY_RENT,
+               DEAL_YEAR_MONTH, BUILDING_NAME, FLOOR, CREATED_AT
+        FROM PUBLIC_REAL_ESTATE
+        WHERE REGION_CODE = #{regionCode} AND DEAL_TYPE = #{dealType}
+        ORDER BY DEAL_YEAR_MONTH DESC, DEAL_ID DESC
+        LIMIT #{size}
+    </select>
+
+</mapper>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.product.review.dao.ProductReviewDao">
+
+    <resultMap id="ReviewMap" type="kr.bang9.product.review.domain.ProductReview">
+        <id column="REVIEW_ID" property="reviewId"/>
+        <result column="PRODUCT_ID" property="productId"/>
+        <result column="USER_ID" property="userId"/>
+        <result column="ORDER_ITEM_ID" property="orderItemId"/>
+        <result column="RATING" property="rating"/>
+        <result column="CONTENT" property="content"/>
+        <result column="IMAGE_URL" property="imageUrl"/>
+        <result column="CREATED_AT" property="createdAt"/>
+    </resultMap>
+
+    <resultMap id="ReviewViewMap" type="kr.bang9.product.review.dto.ReviewView">
+        <constructor>
+            <idArg column="REVIEW_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_ID" javaType="java.lang.Long"/>
+            <arg column="USER_ID" javaType="java.lang.Long"/>
+            <arg column="USER_NICKNAME" javaType="java.lang.String"/>
+            <arg column="ORDER_ITEM_ID" javaType="java.lang.Long"/>
+            <arg column="RATING" javaType="java.lang.Integer"/>
+            <arg column="CONTENT" javaType="java.lang.String"/>
+            <arg column="IMAGE_URL" javaType="java.lang.String"/>
+            <arg column="CREATED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="ReviewSummaryMap" type="kr.bang9.product.review.dto.ReviewSummary">
+        <constructor>
+            <idArg column="PRODUCT_ID" javaType="java.lang.Long"/>
+            <arg column="AVERAGE_RATING" javaType="java.lang.Double"/>
+            <arg column="REVIEW_COUNT" javaType="java.lang.Integer"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="ReviewableItemMap" type="kr.bang9.product.review.dto.ReviewableOrderItem">
+        <constructor>
+            <idArg column="ORDER_ITEM_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_ID" javaType="java.lang.Long"/>
+            <arg column="PRODUCT_NAME" javaType="java.lang.String"/>
+            <arg column="COVER_IMAGE_URL" javaType="java.lang.String"/>
+            <arg column="REVIEW_ID" javaType="java.lang.Long"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertReview" useGeneratedKeys="true" keyProperty="reviewId" keyColumn="REVIEW_ID">
+        INSERT INTO PRODUCT_REVIEWS (
+            PRODUCT_ID, USER_ID, ORDER_ITEM_ID, RATING, CONTENT, IMAGE_URL
+        ) VALUES (
+            #{productId}, #{userId}, #{orderItemId}, #{rating}, #{content}, #{imageUrl}
+        )
+    </insert>
+
+    <select id="findProductIdByOrderItem" resultType="long">
+        SELECT OI.PRODUCT_ID
+        FROM ORDER_ITEMS OI
+        JOIN ORDERS O ON O.ORDER_ID = OI.ORDER_ID
+        WHERE OI.ORDER_ITEM_ID = #{orderItemId}
+          AND O.ORDER_CODE = #{orderCode}
+          AND O.USER_ID = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="findViewById" resultMap="ReviewViewMap">
+        SELECT
+            R.REVIEW_ID, R.PRODUCT_ID, R.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            R.ORDER_ITEM_ID, R.RATING, R.CONTENT, R.IMAGE_URL, R.CREATED_AT
+        FROM PRODUCT_REVIEWS R
+        LEFT JOIN USERS U ON U.USER_ID = R.USER_ID
+        WHERE R.REVIEW_ID = #{reviewId}
+    </select>
+
+    <select id="findViewByOrderItem" resultMap="ReviewViewMap">
+        SELECT
+            R.REVIEW_ID, R.PRODUCT_ID, R.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            R.ORDER_ITEM_ID, R.RATING, R.CONTENT, R.IMAGE_URL, R.CREATED_AT
+        FROM PRODUCT_REVIEWS R
+        LEFT JOIN USERS U ON U.USER_ID = R.USER_ID
+        WHERE R.ORDER_ITEM_ID = #{orderItemId}
+    </select>
+
+    <select id="findListByProduct" resultMap="ReviewViewMap">
+        SELECT
+            R.REVIEW_ID, R.PRODUCT_ID, R.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            R.ORDER_ITEM_ID, R.RATING, R.CONTENT, R.IMAGE_URL, R.CREATED_AT
+        FROM PRODUCT_REVIEWS R
+        LEFT JOIN USERS U ON U.USER_ID = R.USER_ID
+        WHERE R.PRODUCT_ID = #{productId}
+        ORDER BY R.CREATED_AT DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByProduct" resultType="long">
+        SELECT COUNT(*) FROM PRODUCT_REVIEWS WHERE PRODUCT_ID = #{productId}
+    </select>
+
+    <select id="findListByUser" resultMap="ReviewViewMap">
+        SELECT
+            R.REVIEW_ID, R.PRODUCT_ID, R.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            R.ORDER_ITEM_ID, R.RATING, R.CONTENT, R.IMAGE_URL, R.CREATED_AT
+        FROM PRODUCT_REVIEWS R
+        LEFT JOIN USERS U ON U.USER_ID = R.USER_ID
+        WHERE R.USER_ID = #{userId}
+        ORDER BY R.CREATED_AT DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*) FROM PRODUCT_REVIEWS WHERE USER_ID = #{userId}
+    </select>
+
+    <select id="findSummaryByProduct" resultMap="ReviewSummaryMap">
+        SELECT
+            #{productId} AS PRODUCT_ID,
+            COALESCE(AVG(RATING), 0) AS AVERAGE_RATING,
+            CAST(COUNT(*) AS SIGNED) AS REVIEW_COUNT
+        FROM PRODUCT_REVIEWS
+        WHERE PRODUCT_ID = #{productId}
+    </select>
+
+    <select id="findById" resultMap="ReviewMap">
+        SELECT REVIEW_ID, PRODUCT_ID, USER_ID, ORDER_ITEM_ID, RATING, CONTENT, IMAGE_URL, CREATED_AT
+        FROM PRODUCT_REVIEWS
+        WHERE REVIEW_ID = #{reviewId}
+    </select>
+
+    <update id="updateReview">
+        UPDATE PRODUCT_REVIEWS
+        SET RATING = #{rating},
+            CONTENT = #{content},
+            IMAGE_URL = #{imageUrl}
+        WHERE REVIEW_ID = #{reviewId}
+    </update>
+
+    <delete id="deleteReview">
+        DELETE FROM PRODUCT_REVIEWS WHERE REVIEW_ID = #{reviewId}
+    </delete>
+
+    <select id="findReviewableItemsByOrder" resultMap="ReviewableItemMap">
+        SELECT
+            OI.ORDER_ITEM_ID,
+            OI.PRODUCT_ID,
+            JSON_UNQUOTE(JSON_EXTRACT(OI.PRODUCT_SNAPSHOT, '$.productName')) AS PRODUCT_NAME,
+            JSON_UNQUOTE(JSON_EXTRACT(OI.PRODUCT_SNAPSHOT, '$.coverImageUrl')) AS COVER_IMAGE_URL,
+            R.REVIEW_ID
+        FROM ORDERS O
+        JOIN ORDER_ITEMS OI ON OI.ORDER_ID = O.ORDER_ID
+        LEFT JOIN PRODUCT_REVIEWS R ON R.ORDER_ITEM_ID = OI.ORDER_ITEM_ID
+        WHERE O.USER_ID = #{userId}
+          AND O.ORDER_CODE = #{orderCode}
+          AND O.STATUS IN ('DELIVERED','PAID','SHIPPED','PREPARING')
+        ORDER BY OI.ORDER_ITEM_ID ASC
+    </select>
+
+</mapper>

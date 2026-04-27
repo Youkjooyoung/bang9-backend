@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.identity.dao.UserIdentityDao">
+
+    <resultMap id="UserIdentityMap" type="kr.bang9.identity.domain.UserIdentity">
+        <id property="identityId" column="IDENTITY_ID"/>
+        <result property="userId" column="USER_ID"/>
+        <result property="realName" column="REAL_NAME"/>
+        <result property="rrnEncrypted" column="RRN_ENCRYPTED"/>
+        <result property="rrnHash" column="RRN_HASH"/>
+        <result property="verifiedAt" column="VERIFIED_AT"/>
+        <result property="portoneImpUid" column="PORTONE_IMP_UID"/>
+        <result property="createdAt" column="CREATED_AT"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="UserIdentityMap">
+        SELECT IDENTITY_ID, USER_ID, REAL_NAME, RRN_ENCRYPTED, RRN_HASH,
+               VERIFIED_AT, PORTONE_IMP_UID, CREATED_AT
+        FROM USER_IDENTITY
+        WHERE USER_ID = #{userId}
+    </select>
+
+    <select id="findByRrnHash" resultMap="UserIdentityMap">
+        SELECT IDENTITY_ID, USER_ID, REAL_NAME, RRN_ENCRYPTED, RRN_HASH,
+               VERIFIED_AT, PORTONE_IMP_UID, CREATED_AT
+        FROM USER_IDENTITY
+        WHERE RRN_HASH = #{rrnHash}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="kr.bang9.identity.domain.UserIdentity"
+            useGeneratedKeys="true" keyProperty="identityId" keyColumn="IDENTITY_ID">
+        INSERT INTO USER_IDENTITY
+            (USER_ID, REAL_NAME, RRN_ENCRYPTED, RRN_HASH, VERIFIED_AT, PORTONE_IMP_UID)
+        VALUES
+            (#{userId}, #{realName}, #{rrnEncrypted}, #{rrnHash}, #{verifiedAt}, #{portoneImpUid})
+    </insert>
+
+</mapper>

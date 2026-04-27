@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.ai.dao.ListingAiSummaryDao">
+
+    <resultMap id="ListingAiSummaryMap" type="kr.bang9.ai.domain.ListingAiSummary">
+        <id property="summaryId" column="SUMMARY_ID"/>
+        <result property="listingId" column="LISTING_ID"/>
+        <result property="model" column="MODEL"/>
+        <result property="promptVersion" column="PROMPT_VERSION"/>
+        <result property="summaryText" column="SUMMARY_TEXT"/>
+        <result property="highlights" column="HIGHLIGHTS"/>
+        <result property="cautions" column="CAUTIONS"/>
+        <result property="inputHash" column="INPUT_HASH"/>
+        <result property="inputTokens" column="INPUT_TOKENS"/>
+        <result property="outputTokens" column="OUTPUT_TOKENS"/>
+        <result property="status" column="STATUS"/>
+        <result property="errorMessage" column="ERROR_MESSAGE"/>
+        <result property="createdAt" column="CREATED_AT"/>
+        <result property="updatedAt" column="UPDATED_AT"/>
+    </resultMap>
+
+    <select id="findByListingId" resultMap="ListingAiSummaryMap">
+        SELECT SUMMARY_ID, LISTING_ID, MODEL, PROMPT_VERSION, SUMMARY_TEXT, HIGHLIGHTS, CAUTIONS,
+               INPUT_HASH, INPUT_TOKENS, OUTPUT_TOKENS, STATUS, ERROR_MESSAGE, CREATED_AT, UPDATED_AT
+        FROM LISTING_AI_SUMMARY
+        WHERE LISTING_ID = #{listingId}
+    </select>
+
+    <select id="findListingIdsWithoutSummary" resultType="long">
+        SELECT L.LISTING_ID
+        FROM LISTINGS L
+        LEFT JOIN LISTING_AI_SUMMARY S ON S.LISTING_ID = L.LISTING_ID
+        WHERE L.STATUS = 'ACTIVE'
+          AND L.DELETED_AT IS NULL
+          AND S.SUMMARY_ID IS NULL
+        ORDER BY L.CREATED_AT DESC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="upsert" parameterType="kr.bang9.ai.domain.ListingAiSummary">
+        INSERT INTO LISTING_AI_SUMMARY
+            (LISTING_ID, MODEL, PROMPT_VERSION, SUMMARY_TEXT, HIGHLIGHTS, CAUTIONS,
+             INPUT_HASH, INPUT_TOKENS, OUTPUT_TOKENS, STATUS, ERROR_MESSAGE)
+        VALUES
+            (#{listingId}, #{model}, #{promptVersion}, #{summaryText}, #{highlights}, #{cautions},
+             #{inputHash}, #{inputTokens}, #{outputTokens}, #{status}, #{errorMessage})
+        ON DUPLICATE KEY UPDATE
+            MODEL = VALUES(MODEL),
+            PROMPT_VERSION = VALUES(PROMPT_VERSION),
+            SUMMARY_TEXT = VALUES(SUMMARY_TEXT),
+            HIGHLIGHTS = VALUES(HIGHLIGHTS),
+            CAUTIONS = VALUES(CAUTIONS),
+            INPUT_HASH = VALUES(INPUT_HASH),
+            INPUT_TOKENS = VALUES(INPUT_TOKENS),
+            OUTPUT_TOKENS = VALUES(OUTPUT_TOKENS),
+            STATUS = VALUES(STATUS),
+            ERROR_MESSAGE = VALUES(ERROR_MESSAGE)
+    </insert>
+
+    <delete id="deleteByListingId">
+        DELETE FROM LISTING_AI_SUMMARY WHERE LISTING_ID = #{listingId}
+    </delete>
+
+</mapper>

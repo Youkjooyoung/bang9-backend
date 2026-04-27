@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.listing.dao.ListingDao">
+
+    <resultMap id="ListingSummaryMap" type="kr.bang9.listing.dto.ListingSummary">
+        <constructor>
+            <idArg column="LISTING_ID" javaType="java.lang.Long"/>
+            <arg column="TITLE" javaType="java.lang.String"/>
+            <arg column="ROOM_TYPE" javaType="java.lang.String"/>
+            <arg column="DEAL_TYPE" javaType="java.lang.String"/>
+            <arg column="DEPOSIT" javaType="java.lang.Integer"/>
+            <arg column="MONTHLY_RENT" javaType="java.lang.Integer"/>
+            <arg column="AREA_M2" javaType="java.math.BigDecimal"/>
+            <arg column="ROOM_COUNT" javaType="java.lang.Byte"/>
+            <arg column="BATHROOM_COUNT" javaType="java.lang.Byte"/>
+            <arg column="ADDRESS_ROAD" javaType="java.lang.String"/>
+            <arg column="LATITUDE" javaType="java.math.BigDecimal"/>
+            <arg column="LONGITUDE" javaType="java.math.BigDecimal"/>
+            <arg column="COVER_IMAGE_URL" javaType="java.lang.String"/>
+            <arg column="VIEW_COUNT" javaType="java.lang.Integer"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="REJECT_REASON" javaType="java.lang.String"/>
+            <arg column="FAVORITED" javaType="java.lang.Boolean"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="ListingDetailMap" type="kr.bang9.listing.dto.ListingDetail">
+        <constructor>
+            <idArg column="LISTING_ID" javaType="java.lang.Long"/>
+            <arg column="HOST_USER_ID" javaType="java.lang.Long"/>
+            <arg column="HOST_NICKNAME" javaType="java.lang.String"/>
+            <arg column="TITLE" javaType="java.lang.String"/>
+            <arg column="DESCRIPTION" javaType="java.lang.String"/>
+            <arg column="ROOM_TYPE" javaType="java.lang.String"/>
+            <arg column="DEAL_TYPE" javaType="java.lang.String"/>
+            <arg column="DEPOSIT" javaType="java.lang.Integer"/>
+            <arg column="MONTHLY_RENT" javaType="java.lang.Integer"/>
+            <arg column="MAINTENANCE_FEE" javaType="java.lang.Integer"/>
+            <arg column="AREA_M2" javaType="java.math.BigDecimal"/>
+            <arg column="FLOOR" javaType="java.lang.Short"/>
+            <arg column="TOTAL_FLOOR" javaType="java.lang.Short"/>
+            <arg column="ROOM_COUNT" javaType="java.lang.Byte"/>
+            <arg column="BATHROOM_COUNT" javaType="java.lang.Byte"/>
+            <arg column="ADDRESS_ROAD" javaType="java.lang.String"/>
+            <arg column="ADDRESS_DETAIL" javaType="java.lang.String"/>
+            <arg column="LATITUDE" javaType="java.math.BigDecimal"/>
+            <arg column="LONGITUDE" javaType="java.math.BigDecimal"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="SOURCE" javaType="java.lang.String"/>
+            <arg column="VIEW_COUNT" javaType="java.lang.Integer"/>
+            <arg column="BROKER_NAME" javaType="java.lang.String"/>
+            <arg column="BROKER_PHONE" javaType="java.lang.String"/>
+            <arg column="BROKER_OFFICE_PHONE" javaType="java.lang.String"/>
+            <arg column="BROKER_OFFICE_NAME" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <sql id="publicListingFilter">
+        L.STATUS = 'ACTIVE' AND L.DELETED_AT IS NULL
+    </sql>
+
+    <sql id="searchWhere">
+        WHERE <include refid="publicListingFilter"/>
+        <if test="q.keyword != null and q.keyword != ''">
+            AND (L.TITLE LIKE CONCAT('%', #{q.keyword}, '%')
+                 OR L.ADDRESS_ROAD LIKE CONCAT('%', #{q.keyword}, '%'))
+        </if>
+        <if test="q.dealType != null and q.dealType != ''">
+            AND L.DEAL_TYPE = #{q.dealType}
+        </if>
+        <if test="q.roomType != null and q.roomType != ''">
+            AND L.ROOM_TYPE = #{q.roomType}
+        </if>
+        <if test="q.depositMax != null">
+            AND L.DEPOSIT &lt;= #{q.depositMax}
+        </if>
+        <if test="q.monthlyRentMax != null">
+            AND L.MONTHLY_RENT &lt;= #{q.monthlyRentMax}
+        </if>
+        <if test="q.areaMin != null">
+            AND L.AREA_M2 &gt;= #{q.areaMin}
+        </if>
+        <if test="q.areaMax != null">
+            AND L.AREA_M2 &lt;= #{q.areaMax}
+        </if>
+        <if test="q.swLat != null and q.swLng != null and q.neLat != null and q.neLng != null">
+            AND MBRContains(
+                ST_GeomFromText(
+                    CONCAT('POLYGON((',
+                        #{q.swLng}, ' ', #{q.swLat}, ',',
+                        #{q.neLng}, ' ', #{q.swLat}, ',',
+                        #{q.neLng}, ' ', #{q.neLat}, ',',
+                        #{q.swLng}, ' ', #{q.neLat}, ',',
+                        #{q.swLng}, ' ', #{q.swLat}, '))'
+                    ),
+                    4326,
+                    'axis-order=long-lat'
+                ),
+                L.GEO_POINT
+            )
+        </if>
+    </sql>
+
+    <insert id="insertListing" useGeneratedKeys="true" keyProperty="listingId" keyColumn="LISTING_ID">
+        INSERT INTO LISTINGS (
+            HOST_USER_ID, TITLE, DESCRIPTION, ROOM_TYPE, DEAL_TYPE,
+            DEPOSIT, MONTHLY_RENT, MAINTENANCE_FEE, AREA_M2,
+            FLOOR, TOTAL_FLOOR, ROOM_COUNT, BATHROOM_COUNT,
+            ADDRESS_ROAD, ADDRESS_DETAIL,
+            LATITUDE, LONGITUDE, GEO_POINT, STATUS, SOURCE,
+            BROKER_NAME, BROKER_PHONE, BROKER_OFFICE_PHONE, BROKER_OFFICE_NAME
+        ) VALUES (
+            #{hostUserId}, #{title}, #{description}, #{roomType}, #{dealType},
+            #{deposit}, #{monthlyRent}, #{maintenanceFee}, #{areaM2},
+            #{floor}, #{totalFloor}, #{roomCount}, #{bathroomCount},
+            #{addressRoad}, #{addressDetail},
+            #{latitude}, #{longitude},
+            ST_GeomFromText(CONCAT('POINT(', #{longitude}, ' ', #{latitude}, ')'), 4326, 'axis-order=long-lat'),
+            #{status}, #{source},
+            #{brokerName}, #{brokerPhone}, #{brokerOfficePhone}, #{brokerOfficeName}
+        )
+    </insert>
+
+    <insert id="insertListingImages">
+        INSERT INTO LISTING_IMAGES (LISTING_ID, S3_URL, SORT_ORDER, IS_COVER) VALUES
+        <foreach collection="imageUrls" item="url" index="i" separator=",">
+            (#{listingId}, #{url}, #{i}, <if test="i == 0">TRUE</if><if test="i != 0">FALSE</if>)
+        </foreach>
+    </insert>
+
+    <insert id="insertListingOptions">
+        INSERT INTO LISTING_OPTIONS (LISTING_ID, OPTION_ID)
+        SELECT #{listingId}, O.OPTION_ID FROM OPTIONS O
+        WHERE O.CODE IN
+        <foreach collection="optionCodes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+    </insert>
+
+    <select id="search" resultMap="ListingSummaryMap">
+        SELECT
+            L.LISTING_ID, L.TITLE, L.ROOM_TYPE, L.DEAL_TYPE,
+            L.DEPOSIT, L.MONTHLY_RENT, L.AREA_M2, L.ROOM_COUNT, L.BATHROOM_COUNT,
+            L.ADDRESS_ROAD, L.LATITUDE, L.LONGITUDE, L.VIEW_COUNT, L.STATUS, L.REJECT_REASON,
+            (SELECT LI.S3_URL FROM LISTING_IMAGES LI
+              WHERE LI.LISTING_ID = L.LISTING_ID
+              ORDER BY LI.IS_COVER DESC, LI.SORT_ORDER ASC LIMIT 1) AS COVER_IMAGE_URL,
+            <choose>
+                <when test="viewerUserId != null">
+                    CASE WHEN F.USER_ID IS NOT NULL THEN TRUE ELSE FALSE END AS FAVORITED
+                </when>
+                <otherwise>
+                    FALSE AS FAVORITED
+                </otherwise>
+            </choose>
+        FROM LISTINGS L
+        <if test="viewerUserId != null">
+            LEFT JOIN FAVORITES F
+                ON F.LISTING_ID = L.LISTING_ID
+               AND F.USER_ID = #{viewerUserId}
+        </if>
+        <include refid="searchWhere"/>
+        <choose>
+            <when test="q.safeSort == 'priceAsc'">ORDER BY L.MONTHLY_RENT ASC, L.DEPOSIT ASC</when>
+            <when test="q.safeSort == 'priceDesc'">ORDER BY L.MONTHLY_RENT DESC, L.DEPOSIT DESC</when>
+            <when test="q.safeSort == 'view'">ORDER BY L.VIEW_COUNT DESC</when>
+            <otherwise>ORDER BY L.CREATED_AT DESC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*) FROM LISTINGS L
+        <include refid="searchWhere"/>
+    </select>
+
+    <select id="findByBounds" resultMap="ListingSummaryMap">
+        SELECT
+            L.LISTING_ID, L.TITLE, L.ROOM_TYPE, L.DEAL_TYPE,
+            L.DEPOSIT, L.MONTHLY_RENT, L.AREA_M2, L.ROOM_COUNT, L.BATHROOM_COUNT,
+            L.ADDRESS_ROAD, L.LATITUDE, L.LONGITUDE, L.VIEW_COUNT, L.STATUS, L.REJECT_REASON,
+            (SELECT LI.S3_URL FROM LISTING_IMAGES LI
+              WHERE LI.LISTING_ID = L.LISTING_ID
+              ORDER BY LI.IS_COVER DESC, LI.SORT_ORDER ASC LIMIT 1) AS COVER_IMAGE_URL,
+            <choose>
+                <when test="viewerUserId != null">
+                    CASE WHEN F.USER_ID IS NOT NULL THEN TRUE ELSE FALSE END AS FAVORITED
+                </when>
+                <otherwise>
+                    FALSE AS FAVORITED
+                </otherwise>
+            </choose>
+        FROM LISTINGS L
+        <if test="viewerUserId != null">
+            LEFT JOIN FAVORITES F
+                ON F.LISTING_ID = L.LISTING_ID
+               AND F.USER_ID = #{viewerUserId}
+        </if>
+        <include refid="searchWhere"/>
+        ORDER BY L.CREATED_AT DESC
+        LIMIT 500
+    </select>
+
+    <select id="findByHost" resultMap="ListingSummaryMap">
+        SELECT
+            L.LISTING_ID, L.TITLE, L.ROOM_TYPE, L.DEAL_TYPE,
+            L.DEPOSIT, L.MONTHLY_RENT, L.AREA_M2, L.ROOM_COUNT, L.BATHROOM_COUNT,
+            L.ADDRESS_ROAD, L.LATITUDE, L.LONGITUDE, L.VIEW_COUNT, L.STATUS, L.REJECT_REASON,
+            (SELECT LI.S3_URL FROM LISTING_IMAGES LI
+              WHERE LI.LISTING_ID = L.LISTING_ID
+              ORDER BY LI.IS_COVER DESC, LI.SORT_ORDER ASC LIMIT 1) AS COVER_IMAGE_URL,
+            FALSE AS FAVORITED
+        FROM LISTINGS L
+        WHERE L.HOST_USER_ID = #{hostUserId}
+          AND L.DELETED_AT IS NULL
+        ORDER BY L.CREATED_AT DESC
+    </select>
+
+    <select id="findDetail" resultMap="ListingDetailMap">
+        SELECT
+            L.LISTING_ID, L.HOST_USER_ID, U.NICKNAME AS HOST_NICKNAME,
+            L.TITLE, L.DESCRIPTION, L.ROOM_TYPE, L.DEAL_TYPE,
+            L.DEPOSIT, L.MONTHLY_RENT, L.MAINTENANCE_FEE, L.AREA_M2,
+            L.FLOOR, L.TOTAL_FLOOR, L.ROOM_COUNT, L.BATHROOM_COUNT,
+            L.ADDRESS_ROAD, L.ADDRESS_DETAIL,
+            L.LATITUDE, L.LONGITUDE, L.STATUS, L.SOURCE, L.VIEW_COUNT,
+            L.BROKER_NAME, L.BROKER_PHONE, L.BROKER_OFFICE_PHONE, L.BROKER_OFFICE_NAME
+        FROM LISTINGS L
+        JOIN USERS U ON U.USER_ID = L.HOST_USER_ID
+        WHERE L.LISTING_ID = #{listingId} AND L.DELETED_AT IS NULL
+    </select>
+
+    <select id="findHostUserId" resultType="long">
+        SELECT HOST_USER_ID FROM LISTINGS
+        WHERE LISTING_ID = #{listingId} AND DELETED_AT IS NULL
+    </select>
+
+    <select id="findImageUrls" resultType="string">
+        SELECT S3_URL FROM LISTING_IMAGES
+        WHERE LISTING_ID = #{listingId}
+        ORDER BY IS_COVER DESC, SORT_ORDER ASC
+    </select>
+
+    <select id="findOptionCodes" resultType="string">
+        SELECT O.CODE FROM LISTING_OPTIONS LO
+        JOIN OPTIONS O ON O.OPTION_ID = LO.OPTION_ID
+        WHERE LO.LISTING_ID = #{listingId}
+        ORDER BY O.OPTION_ID ASC
+    </select>
+
+    <select id="findAiSummary" resultType="string">
+        SELECT SUMMARY_TEXT FROM LISTING_AI_SUMMARY WHERE LISTING_ID = #{listingId}
+    </select>
+
+    <update id="updateListing">
+        UPDATE LISTINGS
+        SET TITLE = #{title},
+            DESCRIPTION = #{description},
+            ROOM_TYPE = #{roomType},
+            DEAL_TYPE = #{dealType},
+            DEPOSIT = #{deposit},
+            MONTHLY_RENT = #{monthlyRent},
+            MAINTENANCE_FEE = #{maintenanceFee},
+            AREA_M2 = #{areaM2},
+            FLOOR = #{floor},
+            TOTAL_FLOOR = #{totalFloor},
+            ROOM_COUNT = #{roomCount},
+            BATHROOM_COUNT = #{bathroomCount},
+            ADDRESS_ROAD = #{addressRoad},
+            ADDRESS_DETAIL = #{addressDetail},
+            LATITUDE = #{latitude},
+            LONGITUDE = #{longitude},
+            GEO_POINT = ST_GeomFromText(CONCAT('POINT(', #{longitude}, ' ', #{latitude}, ')'), 4326, 'axis-order=long-lat'),
+            STATUS = #{status},
+            BROKER_NAME = #{brokerName},
+            BROKER_PHONE = #{brokerPhone},
+            BROKER_OFFICE_PHONE = #{brokerOfficePhone},
+            BROKER_OFFICE_NAME = #{brokerOfficeName}
+        WHERE LISTING_ID = #{listingId}
+          AND HOST_USER_ID = #{hostUserId}
+          AND DELETED_AT IS NULL
+    </update>
+
+    <update id="updateStatus">
+        UPDATE LISTINGS SET STATUS = #{status}
+        WHERE LISTING_ID = #{listingId} AND DELETED_AT IS NULL
+    </update>
+
+    <update id="increaseViewCount">
+        UPDATE LISTINGS SET VIEW_COUNT = VIEW_COUNT + 1 WHERE LISTING_ID = #{listingId}
+    </update>
+
+    <delete id="deleteImagesByListing">
+        DELETE FROM LISTING_IMAGES WHERE LISTING_ID = #{listingId}
+    </delete>
+
+    <delete id="deleteOptionsByListing">
+        DELETE FROM LISTING_OPTIONS WHERE LISTING_ID = #{listingId}
+    </delete>
+
+    <update id="softDelete">
+        UPDATE LISTINGS
+        SET DELETED_AT = CURRENT_TIMESTAMP, STATUS = 'DELETED'
+        WHERE LISTING_ID = #{listingId}
+          AND HOST_USER_ID = #{hostUserId}
+          AND DELETED_AT IS NULL
+    </update>
+
+    <resultMap id="ListingClusterMap" type="kr.bang9.listing.dto.ListingClusterResponse">
+        <constructor>
+            <arg column="REGION_CODE" javaType="java.lang.String"/>
+            <arg column="REGION_NAME" javaType="java.lang.String"/>
+            <arg column="REGION_TYPE" javaType="java.lang.String"/>
+            <arg column="CENTER_LAT" javaType="java.math.BigDecimal"/>
+            <arg column="CENTER_LNG" javaType="java.math.BigDecimal"/>
+            <arg column="CNT" javaType="java.lang.Integer"/>
+        </constructor>
+    </resultMap>
+
+    <sql id="clusterWhere">
+        WHERE L.STATUS = 'ACTIVE' AND L.DELETED_AT IS NULL
+        <if test="q.dealType != null and q.dealType != ''">
+            AND L.DEAL_TYPE = #{q.dealType}
+        </if>
+        <if test="q.roomType != null and q.roomType != ''">
+            AND L.ROOM_TYPE = #{q.roomType}
+        </if>
+        <if test="q.swLat != null and q.swLng != null and q.neLat != null and q.neLng != null">
+            AND MBRContains(
+                ST_GeomFromText(
+                    CONCAT('POLYGON((',
+                        #{q.swLng}, ' ', #{q.swLat}, ',',
+                        #{q.neLng}, ' ', #{q.swLat}, ',',
+                        #{q.neLng}, ' ', #{q.neLat}, ',',
+                        #{q.swLng}, ' ', #{q.neLat}, ',',
+                        #{q.swLng}, ' ', #{q.swLat}, '))'
+                    ),
+                    4326,
+                    'axis-order=long-lat'
+                ),
+                L.GEO_POINT
+            )
+        </if>
+    </sql>
+
+    <select id="findClustersByGu" parameterType="kr.bang9.listing.dto.ListingClusterRequest" resultMap="ListingClusterMap">
+        SELECT
+            L.GU_CODE AS REGION_CODE,
+            L.GU_NAME AS REGION_NAME,
+            'GU' AS REGION_TYPE,
+            AVG(L.LATITUDE) AS CENTER_LAT,
+            AVG(L.LONGITUDE) AS CENTER_LNG,
+            COUNT(*) AS CNT
+        FROM LISTINGS L
+        <include refid="clusterWhere">
+            <property name="q" value="q"/>
+        </include>
+        AND L.GU_CODE IS NOT NULL
+        GROUP BY L.GU_CODE, L.GU_NAME
+        ORDER BY CNT DESC
+    </select>
+
+    <select id="findClustersByDong" parameterType="kr.bang9.listing.dto.ListingClusterRequest" resultMap="ListingClusterMap">
+        SELECT
+            L.DONG_CODE AS REGION_CODE,
+            L.DONG_NAME AS REGION_NAME,
+            'DONG' AS REGION_TYPE,
+            AVG(L.LATITUDE) AS CENTER_LAT,
+            AVG(L.LONGITUDE) AS CENTER_LNG,
+            COUNT(*) AS CNT
+        FROM LISTINGS L
+        <include refid="clusterWhere">
+            <property name="q" value="q"/>
+        </include>
+        AND L.DONG_CODE IS NOT NULL
+        GROUP BY L.DONG_CODE, L.DONG_NAME
+        ORDER BY CNT DESC
+    </select>
+
+    <sql id="inBoundsWhere">
+        WHERE L.STATUS = 'ACTIVE' AND L.DELETED_AT IS NULL
+        <if test="q.dealType != null and q.dealType != ''">
+            AND L.DEAL_TYPE = #{q.dealType}
+        </if>
+        <if test="q.roomType != null and q.roomType != ''">
+            AND L.ROOM_TYPE = #{q.roomType}
+        </if>
+        <if test="q.swLat != null and q.swLng != null and q.neLat != null and q.neLng != null">
+            AND MBRContains(
+                ST_GeomFromText(
+                    CONCAT('POLYGON((',
+                        #{q.swLng}, ' ', #{q.swLat}, ',',
+                        #{q.neLng}, ' ', #{q.swLat}, ',',
+                        #{q.neLng}, ' ', #{q.neLat}, ',',
+                        #{q.swLng}, ' ', #{q.neLat}, ',',
+                        #{q.swLng}, ' ', #{q.swLat}, '))'
+                    ),
+                    4326,
+                    'axis-order=long-lat'
+                ),
+                L.GEO_POINT
+            )
+        </if>
+    </sql>
+
+    <select id="findInBounds" resultMap="ListingSummaryMap">
+        SELECT
+            L.LISTING_ID, L.TITLE, L.ROOM_TYPE, L.DEAL_TYPE,
+            L.DEPOSIT, L.MONTHLY_RENT, L.AREA_M2, L.ROOM_COUNT, L.BATHROOM_COUNT,
+            L.ADDRESS_ROAD, L.LATITUDE, L.LONGITUDE, L.VIEW_COUNT, L.STATUS, L.REJECT_REASON,
+            (SELECT LI.S3_URL FROM LISTING_IMAGES LI
+              WHERE LI.LISTING_ID = L.LISTING_ID
+              ORDER BY LI.IS_COVER DESC, LI.SORT_ORDER ASC LIMIT 1) AS COVER_IMAGE_URL,
+            <choose>
+                <when test="viewerUserId != null">
+                    CASE WHEN F.USER_ID IS NOT NULL THEN TRUE ELSE FALSE END AS FAVORITED
+                </when>
+                <otherwise>
+                    FALSE AS FAVORITED
+                </otherwise>
+            </choose>
+        FROM LISTINGS L
+        <if test="viewerUserId != null">
+            LEFT JOIN FAVORITES F
+                ON F.LISTING_ID = L.LISTING_ID
+               AND F.USER_ID = #{viewerUserId}
+        </if>
+        <include refid="inBoundsWhere">
+            <property name="q" value="q"/>
+        </include>
+        ORDER BY L.CREATED_AT DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.order.refund.dao.RefundDao">
+
+    <resultMap id="RefundMap" type="kr.bang9.order.refund.domain.Refund">
+        <id column="REFUND_ID" property="refundId"/>
+        <result column="ORDER_ID" property="orderId"/>
+        <result column="USER_ID" property="userId"/>
+        <result column="AMOUNT" property="amount"/>
+        <result column="REASON" property="reason"/>
+        <result column="STATUS" property="status"/>
+        <result column="ADMIN_USER_ID" property="adminUserId"/>
+        <result column="ADMIN_NOTE" property="adminNote"/>
+        <result column="REQUESTED_AT" property="requestedAt"/>
+        <result column="COMPLETED_AT" property="completedAt"/>
+        <result column="PG_CANCELLATION_ID" property="pgCancellationId"/>
+        <result column="PROCESSED_AT" property="processedAt"/>
+        <result column="UPDATED_AT" property="updatedAt"/>
+    </resultMap>
+
+    <resultMap id="RefundViewMap" type="kr.bang9.order.refund.dto.RefundView">
+        <constructor>
+            <idArg column="REFUND_ID" javaType="java.lang.Long"/>
+            <arg column="ORDER_ID" javaType="java.lang.Long"/>
+            <arg column="ORDER_CODE" javaType="java.lang.String"/>
+            <arg column="USER_ID" javaType="java.lang.Long"/>
+            <arg column="USER_NICKNAME" javaType="java.lang.String"/>
+            <arg column="AMOUNT" javaType="java.lang.Integer"/>
+            <arg column="REASON" javaType="java.lang.String"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="ADMIN_USER_ID" javaType="java.lang.Long"/>
+            <arg column="ADMIN_NICKNAME" javaType="java.lang.String"/>
+            <arg column="ADMIN_NOTE" javaType="java.lang.String"/>
+            <arg column="REQUESTED_AT" javaType="java.time.LocalDateTime"/>
+            <arg column="PROCESSED_AT" javaType="java.time.LocalDateTime"/>
+            <arg column="COMPLETED_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertRefund" useGeneratedKeys="true" keyProperty="refundId" keyColumn="REFUND_ID">
+        INSERT INTO REFUNDS (
+            ORDER_ID, USER_ID, AMOUNT, REASON, STATUS
+        ) VALUES (
+            #{orderId}, #{userId}, #{amount}, #{reason}, #{status}
+        )
+    </insert>
+
+    <select id="findLatestByOrder" resultMap="RefundMap">
+        SELECT REFUND_ID, ORDER_ID, USER_ID, AMOUNT, REASON, STATUS, ADMIN_USER_ID, ADMIN_NOTE,
+               REQUESTED_AT, COMPLETED_AT, PG_CANCELLATION_ID, PROCESSED_AT, UPDATED_AT
+        FROM REFUNDS
+        WHERE ORDER_ID = #{orderId}
+        ORDER BY REFUND_ID DESC
+        LIMIT 1
+    </select>
+
+    <select id="findViewById" resultMap="RefundViewMap">
+        SELECT
+            R.REFUND_ID,
+            R.ORDER_ID,
+            O.ORDER_CODE,
+            R.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            R.AMOUNT,
+            R.REASON,
+            R.STATUS,
+            R.ADMIN_USER_ID,
+            A.NICKNAME AS ADMIN_NICKNAME,
+            R.ADMIN_NOTE,
+            R.REQUESTED_AT,
+            R.PROCESSED_AT,
+            R.COMPLETED_AT
+        FROM REFUNDS R
+        JOIN ORDERS O ON O.ORDER_ID = R.ORDER_ID
+        LEFT JOIN USERS U ON U.USER_ID = R.USER_ID
+        LEFT JOIN USERS A ON A.USER_ID = R.ADMIN_USER_ID
+        WHERE R.REFUND_ID = #{refundId}
+    </select>
+
+    <select id="findListByUser" resultMap="RefundViewMap">
+        SELECT
+            R.REFUND_ID,
+            R.ORDER_ID,
+            O.ORDER_CODE,
+            R.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            R.AMOUNT,
+            R.REASON,
+            R.STATUS,
+            R.ADMIN_USER_ID,
+            A.NICKNAME AS ADMIN_NICKNAME,
+            R.ADMIN_NOTE,
+            R.REQUESTED_AT,
+            R.PROCESSED_AT,
+            R.COMPLETED_AT
+        FROM REFUNDS R
+        JOIN ORDERS O ON O.ORDER_ID = R.ORDER_ID
+        LEFT JOIN USERS U ON U.USER_ID = R.USER_ID
+        LEFT JOIN USERS A ON A.USER_ID = R.ADMIN_USER_ID
+        WHERE R.USER_ID = #{userId}
+        ORDER BY R.REQUESTED_AT DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*) FROM REFUNDS WHERE USER_ID = #{userId}
+    </select>
+
+    <select id="findListForAdmin" resultMap="RefundViewMap">
+        SELECT
+            R.REFUND_ID,
+            R.ORDER_ID,
+            O.ORDER_CODE,
+            R.USER_ID,
+            U.NICKNAME AS USER_NICKNAME,
+            R.AMOUNT,
+            R.REASON,
+            R.STATUS,
+            R.ADMIN_USER_ID,
+            A.NICKNAME AS ADMIN_NICKNAME,
+            R.ADMIN_NOTE,
+            R.REQUESTED_AT,
+            R.PROCESSED_AT,
+            R.COMPLETED_AT
+        FROM REFUNDS R
+        JOIN ORDERS O ON O.ORDER_ID = R.ORDER_ID
+        LEFT JOIN USERS U ON U.USER_ID = R.USER_ID
+        LEFT JOIN USERS A ON A.USER_ID = R.ADMIN_USER_ID
+        <where>
+            <if test="status != null and status != ''">
+                R.STATUS = #{status}
+            </if>
+        </where>
+        ORDER BY R.REQUESTED_AT DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countForAdmin" resultType="long">
+        SELECT COUNT(*) FROM REFUNDS
+        <where>
+            <if test="status != null and status != ''">
+                STATUS = #{status}
+            </if>
+        </where>
+    </select>
+
+    <update id="updateDecision">
+        UPDATE REFUNDS
+        SET STATUS = #{status},
+            ADMIN_USER_ID = #{adminUserId},
+            ADMIN_NOTE = #{adminNote},
+            PG_CANCELLATION_ID = #{pgCancellationId},
+            PROCESSED_AT = NOW(),
+            COMPLETED_AT = CASE WHEN #{status} IN ('APPROVED','COMPLETED','REJECTED') THEN NOW() ELSE COMPLETED_AT END
+        WHERE REFUND_ID = #{refundId}
+    </update>
+
+</mapper>

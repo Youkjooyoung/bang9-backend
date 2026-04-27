@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.order.payment.dao.PaymentDao">
+
+    <resultMap id="PaymentMap" type="kr.bang9.order.payment.domain.Payment">
+        <id column="PAYMENT_ID" property="paymentId"/>
+        <result column="ORDER_ID" property="orderId"/>
+        <result column="IMP_UID" property="impUid"/>
+        <result column="MERCHANT_UID" property="merchantUid"/>
+        <result column="METHOD" property="method"/>
+        <result column="AMOUNT" property="amount"/>
+        <result column="STATUS" property="status"/>
+        <result column="PAID_AT" property="paidAt"/>
+        <result column="RAW_RESPONSE" property="rawResponse"/>
+        <result column="CREATED_AT" property="createdAt"/>
+    </resultMap>
+
+    <resultMap id="PaymentViewMap" type="kr.bang9.order.dto.PaymentView">
+        <constructor>
+            <idArg column="PAYMENT_ID" javaType="java.lang.Long"/>
+            <arg column="IMP_UID" javaType="java.lang.String"/>
+            <arg column="MERCHANT_UID" javaType="java.lang.String"/>
+            <arg column="METHOD" javaType="java.lang.String"/>
+            <arg column="AMOUNT" javaType="java.lang.Integer"/>
+            <arg column="STATUS" javaType="java.lang.String"/>
+            <arg column="PAID_AT" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertPayment" useGeneratedKeys="true" keyProperty="paymentId" keyColumn="PAYMENT_ID">
+        INSERT INTO PAYMENTS (
+            ORDER_ID, IMP_UID, MERCHANT_UID, METHOD, AMOUNT, STATUS, PAID_AT, RAW_RESPONSE
+        ) VALUES (
+            #{orderId}, #{impUid}, #{merchantUid}, #{method}, #{amount}, #{status}, #{paidAt}, #{rawResponse}
+        )
+    </insert>
+
+    <select id="findByOrderId" resultMap="PaymentViewMap">
+        SELECT PAYMENT_ID, IMP_UID, MERCHANT_UID, METHOD, AMOUNT, STATUS, PAID_AT
+        FROM PAYMENTS
+        WHERE ORDER_ID = #{orderId}
+    </select>
+
+    <select id="findByImpUid" resultMap="PaymentMap">
+        SELECT PAYMENT_ID, ORDER_ID, IMP_UID, MERCHANT_UID, METHOD, AMOUNT, STATUS,
+               PAID_AT, RAW_RESPONSE, CREATED_AT
+        FROM PAYMENTS
+        WHERE IMP_UID = #{impUid}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE PAYMENTS SET STATUS = #{status} WHERE PAYMENT_ID = #{paymentId}
+    </update>
+
+</mapper>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.bang9.user.dao.UserDao">
+
+    <resultMap id="UserResultMap" type="kr.bang9.user.domain.User">
+        <id column="USER_ID" property="userId"/>
+        <result column="EMAIL" property="email"/>
+        <result column="PASSWORD_HASH" property="passwordHash"/>
+        <result column="NICKNAME" property="nickname"/>
+        <result column="NAME" property="name"/>
+        <result column="BIRTH_DATE" property="birthDate"/>
+        <result column="GENDER" property="gender"/>
+        <result column="PROFILE_IMAGE_URL" property="profileImageUrl"/>
+        <result column="ROLE" property="role"/>
+        <result column="OAUTH_PROVIDER" property="oauthProvider"/>
+        <result column="OAUTH_PROVIDER_ID" property="oauthProviderId"/>
+        <result column="PHONE" property="phone"/>
+        <result column="STATUS" property="status"/>
+        <result column="LAST_LOGIN_AT" property="lastLoginAt"/>
+        <result column="CREATED_AT" property="createdAt"/>
+        <result column="UPDATED_AT" property="updatedAt"/>
+        <result column="DELETED_AT" property="deletedAt"/>
+    </resultMap>
+
+    <insert id="insertUser" parameterType="kr.bang9.user.domain.User"
+            useGeneratedKeys="true" keyProperty="userId" keyColumn="USER_ID">
+        INSERT INTO USERS (
+            EMAIL, PASSWORD_HASH, NICKNAME, NAME, BIRTH_DATE, GENDER, PROFILE_IMAGE_URL,
+            ROLE, OAUTH_PROVIDER, OAUTH_PROVIDER_ID, PHONE, STATUS
+        ) VALUES (
+            #{email}, #{passwordHash}, #{nickname}, #{name}, #{birthDate}, #{gender}, #{profileImageUrl},
+            #{role}, #{oauthProvider}, #{oauthProviderId}, #{phone},
+            COALESCE(#{status}, 'ACTIVE')
+        )
+    </insert>
+
+    <select id="findById" resultMap="UserResultMap">
+        SELECT * FROM USERS
+        WHERE USER_ID = #{userId} AND DELETED_AT IS NULL
+    </select>
+
+    <select id="findByEmail" resultMap="UserResultMap">
+        SELECT * FROM USERS
+        WHERE EMAIL = #{email} AND DELETED_AT IS NULL
+    </select>
+
+    <select id="findByOauth" resultMap="UserResultMap">
+        SELECT * FROM USERS
+        WHERE OAUTH_PROVIDER = #{provider}
+          AND OAUTH_PROVIDER_ID = #{providerId}
+          AND DELETED_AT IS NULL
+    </select>
+
+    <select id="findByNameAndPhone" resultMap="UserResultMap">
+        SELECT * FROM USERS
+        WHERE NAME = #{name}
+          AND PHONE = #{phone}
+          AND DELETED_AT IS NULL
+        ORDER BY CREATED_AT ASC
+        LIMIT 1
+    </select>
+
+    <select id="findByEmailAndPhone" resultMap="UserResultMap">
+        SELECT * FROM USERS
+        WHERE EMAIL = #{email}
+          AND PHONE = #{phone}
+          AND DELETED_AT IS NULL
+        LIMIT 1
+    </select>
+
+    <select id="existsByEmail" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM USERS WHERE EMAIL = #{email} AND DELETED_AT IS NULL
+        )
+    </select>
+
+    <update id="updateLastLoginAt">
+        UPDATE USERS
+        SET LAST_LOGIN_AT = #{loginAt}
+        WHERE USER_ID = #{userId}
+    </update>
+
+    <update id="updateProfile" parameterType="kr.bang9.user.domain.User">
+        UPDATE USERS
+        SET NICKNAME = #{nickname},
+            PROFILE_IMAGE_URL = #{profileImageUrl},
+            PHONE = #{phone},
+            NAME = #{name},
+            BIRTH_DATE = #{birthDate},
+            GENDER = #{gender}
+        WHERE USER_ID = #{userId}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE USERS
+        SET PASSWORD_HASH = #{passwordHash}
+        WHERE USER_ID = #{userId}
+    </update>
+
+    <update id="linkOauth">
+        UPDATE USERS
+        SET OAUTH_PROVIDER = #{provider},
+            OAUTH_PROVIDER_ID = #{providerId}
+        WHERE USER_ID = #{userId}
+    </update>
+
+    <update id="unlinkOauth">
+        UPDATE USERS
+        SET OAUTH_PROVIDER = NULL,
+            OAUTH_PROVIDER_ID = NULL
+        WHERE USER_ID = #{userId}
+    </update>
+
+    <update id="softDelete">
+        UPDATE USERS
+        SET STATUS = 'WITHDRAWN',
+            DELETED_AT = #{deletedAt}
+        WHERE USER_ID = #{userId}
+    </update>
+
+</mapper>
