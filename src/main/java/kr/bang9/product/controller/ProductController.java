@@ -1,6 +1,6 @@
 package kr.bang9.product.controller;
 
-import kr.bang9.listing.dto.PageResponse;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.product.dto.CategoryNode;
 import kr.bang9.product.dto.ProductDetail;
 import kr.bang9.product.dto.ProductSearchRequest;

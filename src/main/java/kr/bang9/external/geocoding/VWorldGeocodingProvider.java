@@ -41,10 +41,7 @@ public class VWorldGeocodingProvider implements GeocodingProvider {
 
     @Override
     public List<GeocodingResult> searchAddress(String query) {
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new CustomException(ErrorCode.ERR_INTERNAL,
-                "VWorld API 키가 설정되지 않았습니다.");
-        }
+        GeocodingJson.requireApiKey(apiKey, "VWorld API 키가 설정되지 않았습니다.");
         if (query == null || query.isBlank()) {
             return List.of();
         }
@@ -60,10 +57,7 @@ public class VWorldGeocodingProvider implements GeocodingProvider {
 
     @Override
     public ReverseGeocodingResult reverseGeocode(double latitude, double longitude) {
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new CustomException(ErrorCode.ERR_INTERNAL,
-                "VWorld API 키가 설정되지 않았습니다.");
-        }
+        GeocodingJson.requireApiKey(apiKey, "VWorld API 키가 설정되지 않았습니다.");
 
         String point = longitude + "," + latitude;
         String uri = UriComponentsBuilder.fromPath(GETCOORD_PATH)
@@ -90,12 +84,12 @@ public class VWorldGeocodingProvider implements GeocodingProvider {
             JsonNode response = root.get("response");
             if (response == null) return null;
 
-            String status = textOrNull(response, "status");
+            String status = GeocodingJson.textOrNull(response, "status");
             if (!"OK".equals(status)) {
                 if ("ERROR".equals(status)) {
                     JsonNode err = response.get("error");
-                    String code = err != null ? textOrNull(err, "code") : null;
-                    String text = err != null ? textOrNull(err, "text") : null;
+                    String code = err != null ? GeocodingJson.textOrNull(err, "code") : null;
+                    String text = err != null ? GeocodingJson.textOrNull(err, "text") : null;
                     log.error("VWorld reverse ERROR code={} text={}", code, text);
                     if ("INVALID_KEY".equals(code) || "UNAUTHENTICATED".equals(code)) {
                         throw new CustomException(ErrorCode.ERR_INTERNAL,
@@ -109,15 +103,15 @@ public class VWorldGeocodingProvider implements GeocodingProvider {
             if (result == null || !result.isArray() || result.isEmpty()) return null;
 
             JsonNode picked = result.get(0);
-            String text = textOrNull(picked, "text");
+            String text = GeocodingJson.textOrNull(picked, "text");
             JsonNode structure = picked.get("structure");
-            String depth1 = structure != null ? textOrNull(structure, "level1") : null;
-            String depth2 = structure != null ? textOrNull(structure, "level2") : null;
+            String depth1 = structure != null ? GeocodingJson.textOrNull(structure, "level1") : null;
+            String depth2 = structure != null ? GeocodingJson.textOrNull(structure, "level2") : null;
             String depth3 = null;
             if (structure != null) {
-                String level4L = textOrNull(structure, "level4L");
-                String level4A = textOrNull(structure, "level4A");
-                String level5 = textOrNull(structure, "level5");
+                String level4L = GeocodingJson.textOrNull(structure, "level4L");
+                String level4A = GeocodingJson.textOrNull(structure, "level4A");
+                String level5 = GeocodingJson.textOrNull(structure, "level5");
                 if (level4L != null && !level4L.isBlank()) depth3 = level4L;
                 else if (level4A != null && !level4A.isBlank()) depth3 = level4A;
                 else if (level5 != null && !level5.isBlank()) depth3 = level5;
@@ -177,12 +171,12 @@ public class VWorldGeocodingProvider implements GeocodingProvider {
             JsonNode response = root.get("response");
             if (response == null) return null;
 
-            String status = textOrNull(response, "status");
+            String status = GeocodingJson.textOrNull(response, "status");
             if (!"OK".equals(status)) {
                 if ("ERROR".equals(status)) {
                     JsonNode err = response.get("error");
-                    String code = err != null ? textOrNull(err, "code") : null;
-                    String text = err != null ? textOrNull(err, "text") : null;
+                    String code = err != null ? GeocodingJson.textOrNull(err, "code") : null;
+                    String text = err != null ? GeocodingJson.textOrNull(err, "text") : null;
                     log.error("VWorld API ERROR type={} code={} text={}", type, code, text);
                     if ("INVALID_KEY".equals(code) || "UNAUTHENTICATED".equals(code)) {
                         throw new CustomException(ErrorCode.ERR_INTERNAL,
@@ -197,14 +191,14 @@ public class VWorldGeocodingProvider implements GeocodingProvider {
             JsonNode point = result.get("point");
             if (point == null) return null;
 
-            Double longitude = doubleOrNull(point, "x");
-            Double latitude = doubleOrNull(point, "y");
+            Double longitude = GeocodingJson.doubleOrNull(point, "x");
+            Double latitude = GeocodingJson.doubleOrNull(point, "y");
             if (latitude == null || longitude == null) return null;
 
             String refinedAddress = null;
             JsonNode refined = response.get("refined");
             if (refined != null) {
-                refinedAddress = textOrNull(refined, "text");
+                refinedAddress = GeocodingJson.textOrNull(refined, "text");
             }
             String resolved = refinedAddress != null ? refinedAddress : query;
 
@@ -238,18 +232,4 @@ public class VWorldGeocodingProvider implements GeocodingProvider {
         }
     }
 
-    private String textOrNull(JsonNode node, String field) {
-        JsonNode v = node.get(field);
-        return v == null || v.isNull() ? null : v.asText();
-    }
-
-    private Double doubleOrNull(JsonNode node, String field) {
-        JsonNode v = node.get(field);
-        if (v == null || v.isNull()) return null;
-        try {
-            return Double.parseDouble(v.asText());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 }

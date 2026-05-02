@@ -1,7 +1,7 @@
 package kr.bang9.listing.favorite.controller;
 
 import kr.bang9.common.security.AuthPrincipal;
-import kr.bang9.listing.dto.PageResponse;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.listing.favorite.dto.FavoriteListingSummary;
 import kr.bang9.listing.favorite.service.FavoriteService;
 import lombok.RequiredArgsConstructor;

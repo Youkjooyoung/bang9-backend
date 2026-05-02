@@ -1,8 +1,11 @@
 package kr.bang9.product.review.controller;
 
 import jakarta.validation.Valid;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.common.security.AuthPrincipal;
 import kr.bang9.product.review.dto.ReviewCreateCommand;
+import kr.bang9.product.review.dto.ReviewPublicView;
+import kr.bang9.product.review.dto.ReviewPageResponse;
 import kr.bang9.product.review.dto.ReviewUpdateCommand;
 import kr.bang9.product.review.dto.ReviewView;
 import kr.bang9.product.review.dto.ReviewableOrderItem;
@@ -20,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -40,7 +42,7 @@ public class ProductReviewController {
     }
 
     @GetMapping("/api/products/{productId}/reviews")
-    public ResponseEntity<Map<String, Object>> getProductReviews(
+    public ResponseEntity<ReviewPageResponse<ReviewPublicView>> getProductReviews(
         @PathVariable("productId") Long productId,
         @RequestParam(name = "page", defaultValue = "0") int page,
         @RequestParam(name = "size", defaultValue = "10") int size
@@ -57,7 +59,7 @@ public class ProductReviewController {
     }
 
     @GetMapping("/api/users/me/reviews")
-    public ResponseEntity<Map<String, Object>> getMyReviews(
+    public ResponseEntity<PageResponse<ReviewView>> getMyReviews(
         @AuthenticationPrincipal AuthPrincipal principal,
         @RequestParam(name = "page", defaultValue = "0") int page,
         @RequestParam(name = "size", defaultValue = "10") int size

@@ -8,14 +8,13 @@ import kr.bang9.listing.domain.Listing;
 import kr.bang9.listing.dto.ListingBoundsRequest;
 import kr.bang9.listing.dto.ListingClusterRequest;
 import kr.bang9.listing.dto.ListingClusterResponse;
-import kr.bang9.listing.dto.ListingCreateRequest;
 import kr.bang9.listing.dto.ListingCreateResponse;
 import kr.bang9.listing.dto.ListingDetail;
 import kr.bang9.listing.dto.ListingDetailResponse;
+import kr.bang9.listing.dto.ListingSaveRequest;
 import kr.bang9.listing.dto.ListingSearchRequest;
 import kr.bang9.listing.dto.ListingSummary;
-import kr.bang9.listing.dto.ListingUpdateRequest;
-import kr.bang9.listing.dto.PageResponse;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.listing.favorite.dao.FavoriteDao;
 import java.util.Collections;
 import lombok.RequiredArgsConstructor;
@@ -36,9 +35,9 @@ public class ListingService {
     private final ProfanityFilter profanityFilter;
 
     @Transactional
-    public ListingCreateResponse create(long hostUserId, ListingCreateRequest request) {
+    public ListingCreateResponse create(long hostUserId, ListingSaveRequest request) {
         validateProfanity(request.title(), request.description());
-        Listing listing = buildListingFromCreate(hostUserId, request);
+        Listing listing = buildListing(null, hostUserId, request);
         listingDao.insertListing(listing);
         saveImagesAndOptions(listing.getListingId(), request.imageUrls(), request.optionCodes());
         return new ListingCreateResponse(listing.getListingId(), listing.getStatus());
@@ -114,10 +113,10 @@ public class ListingService {
     }
 
     @Transactional
-    public void update(long hostUserId, Long listingId, ListingUpdateRequest request) {
+    public void update(long hostUserId, Long listingId, ListingSaveRequest request) {
         validateProfanity(request.title(), request.description());
         verifyOwner(listingId, hostUserId);
-        Listing listing = buildListingFromUpdate(listingId, hostUserId, request);
+        Listing listing = buildListing(listingId, hostUserId, request);
         listingDao.updateListing(listing);
         listingDao.deleteImagesByListing(listingId);
         listingDao.deleteOptionsByListing(listingId);
@@ -136,35 +135,7 @@ public class ListingService {
         listingDao.softDelete(listingId, hostUserId);
     }
 
-    private Listing buildListingFromCreate(long hostUserId, ListingCreateRequest request) {
-        return Listing.builder()
-            .hostUserId(hostUserId)
-            .title(request.title())
-            .description(request.description())
-            .roomType(request.roomType())
-            .dealType(request.dealType())
-            .deposit(request.deposit())
-            .monthlyRent(request.monthlyRent() == null ? 0 : request.monthlyRent())
-            .maintenanceFee(request.maintenanceFee() == null ? 0 : request.maintenanceFee())
-            .areaM2(request.areaM2())
-            .floor(request.floor())
-            .totalFloor(request.totalFloor())
-            .roomCount(request.roomCount() == null ? 1 : request.roomCount())
-            .bathroomCount(request.bathroomCount() == null ? 1 : request.bathroomCount())
-            .addressRoad(request.addressRoad())
-            .addressDetail(request.addressDetail())
-            .latitude(request.latitude())
-            .longitude(request.longitude())
-            .status(STATUS_PENDING)
-            .source(SOURCE_HOST)
-            .brokerName(request.brokerName())
-            .brokerPhone(request.brokerPhone())
-            .brokerOfficePhone(request.brokerOfficePhone())
-            .brokerOfficeName(request.brokerOfficeName())
-            .build();
-    }
-
-    private Listing buildListingFromUpdate(Long listingId, long hostUserId, ListingUpdateRequest request) {
+    private Listing buildListing(Long listingId, long hostUserId, ListingSaveRequest request) {
         return Listing.builder()
             .listingId(listingId)
             .hostUserId(hostUserId)

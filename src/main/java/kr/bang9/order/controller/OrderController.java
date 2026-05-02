@@ -1,10 +1,12 @@
 package kr.bang9.order.controller;
 
 import jakarta.validation.Valid;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.common.security.AuthPrincipal;
 import kr.bang9.order.dto.OrderCreateRequest;
 import kr.bang9.order.dto.OrderCreateResponse;
 import kr.bang9.order.dto.OrderDetail;
+import kr.bang9.order.dto.OrderListItem;
 import kr.bang9.order.dto.PaymentConfirmRequest;
 import kr.bang9.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -54,7 +54,7 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getList(
+    public ResponseEntity<PageResponse<OrderListItem>> getList(
         @AuthenticationPrincipal AuthPrincipal principal,
         @RequestParam(name = "page", defaultValue = "0") int page,
         @RequestParam(name = "size", defaultValue = "10") int size

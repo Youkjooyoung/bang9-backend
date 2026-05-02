@@ -4,7 +4,7 @@ import kr.bang9.common.exception.CustomException;
 import kr.bang9.common.exception.ErrorCode;
 import kr.bang9.listing.favorite.dao.FavoriteDao;
 import kr.bang9.listing.favorite.dto.FavoriteListingSummary;
-import kr.bang9.listing.dto.PageResponse;
+import kr.bang9.common.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;

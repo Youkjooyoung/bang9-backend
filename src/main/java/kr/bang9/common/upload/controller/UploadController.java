@@ -22,12 +22,14 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 @RestController
 @RequestMapping("/api/uploads")
 @RequiredArgsConstructor
 public class UploadController {
+
+    private static final long MAX_UPLOAD_BYTES = 10L * 1024 * 1024;
+    private static final String OBJECT_KEY_PATTERN = "^(listing|profile|product)/\\d{4}/\\d{2}/\\d{2}/\\d+/[a-f0-9]{32}\\.(jpg|jpeg|png|webp|gif)$";
 
     private final UploadService uploadService;
     private final ObjectProvider<LocalUploadService> localUploadServiceProvider;
@@ -59,18 +61,39 @@ public class UploadController {
         if (!path.startsWith(prefix)) {
             throw new CustomException(ErrorCode.ERR_INVALID_PARAMETER);
         }
-        return path.substring(prefix.length());
+        String objectKey = path.substring(prefix.length());
+        if (!objectKey.matches(OBJECT_KEY_PATTERN)) {
+            throw new CustomException(ErrorCode.ERR_INVALID_PARAMETER);
+        }
+        return objectKey;
     }
 
     private void saveRawBody(LocalUploadService local, String objectKey, HttpServletRequest request) {
+        if (request.getContentLengthLong() > MAX_UPLOAD_BYTES) {
+            throw new CustomException(ErrorCode.ERR_INVALID_PARAMETER, "업로드 파일 크기가 너무 큽니다.");
+        }
         try {
             Path target = local.resolveTarget(objectKey);
             Files.createDirectories(target.getParent());
-            try (var in = request.getInputStream()) {
-                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            try (var in = request.getInputStream(); var out = Files.newOutputStream(target)) {
+                copyLimited(in, out, target);
             }
         } catch (IOException e) {
             throw new CustomException(ErrorCode.ERR_INTERNAL);
+        }
+    }
+
+    private void copyLimited(java.io.InputStream in, java.io.OutputStream out, Path target) throws IOException {
+        byte[] buffer = new byte[8192];
+        long total = 0;
+        int read;
+        while ((read = in.read(buffer)) != -1) {
+            total += read;
+            if (total > MAX_UPLOAD_BYTES) {
+                Files.deleteIfExists(target);
+                throw new CustomException(ErrorCode.ERR_INVALID_PARAMETER, "업로드 파일 크기가 너무 큽니다.");
+            }
+            out.write(buffer, 0, read);
         }
     }
 }

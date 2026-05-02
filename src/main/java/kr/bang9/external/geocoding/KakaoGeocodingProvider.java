@@ -43,10 +43,7 @@ public class KakaoGeocodingProvider implements GeocodingProvider {
 
     @Override
     public List<GeocodingResult> searchAddress(String query) {
-        if (restApiKey == null || restApiKey.isBlank()) {
-            throw new CustomException(ErrorCode.ERR_INTERNAL,
-                "Kakao REST API 키가 설정되지 않았습니다.");
-        }
+        GeocodingJson.requireApiKey(restApiKey, "Kakao REST API 키가 설정되지 않았습니다.");
         if (query == null || query.isBlank()) {
             return List.of();
         }
@@ -99,10 +96,7 @@ public class KakaoGeocodingProvider implements GeocodingProvider {
 
     @Override
     public ReverseGeocodingResult reverseGeocode(double latitude, double longitude) {
-        if (restApiKey == null || restApiKey.isBlank()) {
-            throw new CustomException(ErrorCode.ERR_INTERNAL,
-                "Kakao REST API 키가 설정되지 않았습니다.");
-        }
+        GeocodingJson.requireApiKey(restApiKey, "Kakao REST API 키가 설정되지 않았습니다.");
 
         String uri = UriComponentsBuilder.fromPath(COORD2REGION_PATH)
             .queryParam("x", longitude)
@@ -128,7 +122,7 @@ public class KakaoGeocodingProvider implements GeocodingProvider {
 
             JsonNode picked = null;
             for (JsonNode doc : documents) {
-                String type = textOrNull(doc, "region_type");
+                String type = GeocodingJson.textOrNull(doc, "region_type");
                 if ("H".equals(type)) {
                     picked = doc;
                     break;
@@ -136,10 +130,10 @@ public class KakaoGeocodingProvider implements GeocodingProvider {
             }
             if (picked == null) picked = documents.get(0);
 
-            String addressName = textOrNull(picked, "address_name");
-            String depth1 = textOrNull(picked, "region_1depth_name");
-            String depth2 = textOrNull(picked, "region_2depth_name");
-            String depth3 = textOrNull(picked, "region_3depth_name");
+            String addressName = GeocodingJson.textOrNull(picked, "address_name");
+            String depth1 = GeocodingJson.textOrNull(picked, "region_1depth_name");
+            String depth2 = GeocodingJson.textOrNull(picked, "region_2depth_name");
+            String depth3 = GeocodingJson.textOrNull(picked, "region_3depth_name");
 
             return new ReverseGeocodingResult(
                 addressName,
@@ -174,14 +168,14 @@ public class KakaoGeocodingProvider implements GeocodingProvider {
 
     private GeocodingResult toResult(JsonNode doc) {
         if (doc == null) return null;
-        String addressName = textOrNull(doc, "address_name");
+        String addressName = GeocodingJson.textOrNull(doc, "address_name");
         String roadAddressName = null;
         JsonNode roadAddress = doc.get("road_address");
         if (roadAddress != null && !roadAddress.isNull()) {
-            roadAddressName = textOrNull(roadAddress, "address_name");
+            roadAddressName = GeocodingJson.textOrNull(roadAddress, "address_name");
         }
-        Double latitude = doubleOrNull(doc, "y");
-        Double longitude = doubleOrNull(doc, "x");
+        Double latitude = GeocodingJson.doubleOrNull(doc, "y");
+        Double longitude = GeocodingJson.doubleOrNull(doc, "x");
         if (latitude == null || longitude == null) return null;
         return new GeocodingResult(
             addressName,
@@ -191,18 +185,4 @@ public class KakaoGeocodingProvider implements GeocodingProvider {
         );
     }
 
-    private String textOrNull(JsonNode node, String field) {
-        JsonNode v = node.get(field);
-        return v == null || v.isNull() ? null : v.asText();
-    }
-
-    private Double doubleOrNull(JsonNode node, String field) {
-        JsonNode v = node.get(field);
-        if (v == null || v.isNull()) return null;
-        try {
-            return Double.parseDouble(v.asText());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 }

@@ -10,13 +10,13 @@ import kr.bang9.admin.dto.AdminReportView;
 import kr.bang9.admin.dto.AdminUserUpdateRequest;
 import kr.bang9.admin.dto.AdminUserView;
 import kr.bang9.admin.service.AdminService;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.common.security.AuthPrincipal;
 import kr.bang9.external.publicdata.service.PublicDataService;
 import kr.bang9.order.refund.dto.RefundDecisionCommand;
 import kr.bang9.order.refund.dto.RefundView;
 import kr.bang9.order.refund.service.RefundService;
 
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -138,7 +138,7 @@ public class AdminController {
     }
 
     @GetMapping("/refund-requests")
-    public ResponseEntity<Map<String, Object>> getRefundRequests(
+    public ResponseEntity<PageResponse<RefundView>> getRefundRequests(
         @RequestParam(required = false) String status,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "20") int size

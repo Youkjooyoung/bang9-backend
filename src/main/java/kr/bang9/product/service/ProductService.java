@@ -1,8 +1,8 @@
 package kr.bang9.product.service;
 
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.common.exception.CustomException;
 import kr.bang9.common.exception.ErrorCode;
-import kr.bang9.listing.dto.PageResponse;
 import kr.bang9.product.dao.ProductDao;
 import kr.bang9.product.dto.CategoryFlat;
 import kr.bang9.product.dto.CategoryNode;

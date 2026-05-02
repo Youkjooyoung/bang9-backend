@@ -1,4 +1,4 @@
-package kr.bang9.listing.dto;
+package kr.bang9.common.dto;
 
 import java.util.List;
 

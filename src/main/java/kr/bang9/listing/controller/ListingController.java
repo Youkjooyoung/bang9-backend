@@ -5,14 +5,13 @@ import kr.bang9.common.security.AuthPrincipal;
 import kr.bang9.listing.dto.ListingBoundsRequest;
 import kr.bang9.listing.dto.ListingClusterRequest;
 import kr.bang9.listing.dto.ListingClusterResponse;
-import kr.bang9.listing.dto.ListingCreateRequest;
 import kr.bang9.listing.dto.ListingCreateResponse;
 import kr.bang9.listing.dto.ListingDetailResponse;
+import kr.bang9.listing.dto.ListingSaveRequest;
 import kr.bang9.listing.dto.ListingSearchRequest;
 import kr.bang9.listing.dto.ListingStatusUpdateRequest;
 import kr.bang9.listing.dto.ListingSummary;
-import kr.bang9.listing.dto.ListingUpdateRequest;
-import kr.bang9.listing.dto.PageResponse;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.listing.service.ListingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -42,7 +41,7 @@ public class ListingController {
     @PreAuthorize("hasAnyRole('HOST','ADMIN')")
     public ResponseEntity<ListingCreateResponse> create(
         @AuthenticationPrincipal AuthPrincipal principal,
-        @Valid @RequestBody ListingCreateRequest request
+        @Valid @RequestBody ListingSaveRequest request
     ) {
         return ResponseEntity.ok(listingService.create(principal.userId(), request));
     }
@@ -108,7 +107,7 @@ public class ListingController {
     public ResponseEntity<Void> update(
         @AuthenticationPrincipal AuthPrincipal principal,
         @PathVariable("listingId") Long listingId,
-        @Valid @RequestBody ListingUpdateRequest request
+        @Valid @RequestBody ListingSaveRequest request
     ) {
         listingService.update(principal.userId(), listingId, request);
         return ResponseEntity.noContent().build();

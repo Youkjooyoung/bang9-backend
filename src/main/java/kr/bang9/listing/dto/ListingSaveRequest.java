@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
 
-public record ListingCreateRequest(
+public record ListingSaveRequest(
     @NotBlank(message = "제목을 입력해주세요.")
     @Size(max = 150, message = "제목은 150자 이내로 입력해주세요.")
     String title,

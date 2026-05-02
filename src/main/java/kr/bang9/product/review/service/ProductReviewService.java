@@ -1,6 +1,7 @@
 package kr.bang9.product.review.service;
 
 import kr.bang9.common.exception.CustomException;
+import kr.bang9.common.dto.PageResponse;
 import kr.bang9.common.exception.ErrorCode;
 import kr.bang9.common.util.ProfanityFilter;
 import kr.bang9.order.dao.OrderDao;
@@ -8,6 +9,7 @@ import kr.bang9.order.domain.Order;
 import kr.bang9.product.review.dao.ProductReviewDao;
 import kr.bang9.product.review.domain.ProductReview;
 import kr.bang9.product.review.dto.ReviewCreateCommand;
+import kr.bang9.product.review.dto.ReviewPageResponse;
 import kr.bang9.product.review.dto.ReviewPublicView;
 import kr.bang9.product.review.dto.ReviewSummary;
 import kr.bang9.product.review.dto.ReviewUpdateCommand;
@@ -18,9 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -67,7 +67,7 @@ public class ProductReviewService {
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getListByProduct(Long productId, int page, int size) {
+    public ReviewPageResponse<ReviewPublicView> getListByProduct(Long productId, int page, int size) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(size, 50));
         int offset = safePage * safeSize;
@@ -76,28 +76,17 @@ public class ProductReviewService {
             .toList();
         long total = productReviewDao.countByProduct(productId);
         ReviewSummary summary = productReviewDao.findSummaryByProduct(productId);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("content", content);
-        result.put("totalElements", total);
-        result.put("page", safePage);
-        result.put("size", safeSize);
-        result.put("summary", summary);
-        return result;
+        return ReviewPageResponse.of(content, safePage, safeSize, total, summary);
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getListByUser(long userId, int page, int size) {
+    public PageResponse<ReviewView> getListByUser(long userId, int page, int size) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(size, 50));
         int offset = safePage * safeSize;
         List<ReviewView> content = productReviewDao.findListByUser(userId, offset, safeSize);
         long total = productReviewDao.countByUser(userId);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("content", content);
-        result.put("totalElements", total);
-        result.put("page", safePage);
-        result.put("size", safeSize);
-        return result;
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     @Transactional(readOnly = true)
